@@ -1,0 +1,4 @@
+(define m (macro () (lambda (x) (println x))))
+
+((lambda (x) (println x)) 10)
+(m (lambda () 10) (lambda () 20))

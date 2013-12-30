@@ -1,0 +1,14 @@
+(define id (lambda (x) x))
+(define not (lambda (x) (if x #f #t)))
+(define zero? (lambda (x) (if (== x 0) #t (== x 0.0))))
+
+(assert (not (not #t)))
+(assert (not #f))
+(assert (zero? 0))
+(assert (zero? 0.0))
+(assert (let ((x 10))
+        (== x (id x))))
+(assert ((lambda (x) (quote x)) #t))
+(assert ((lambda (x) x) #t))
+
+(println "success!")
