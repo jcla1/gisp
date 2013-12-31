@@ -13,30 +13,8 @@ type Scope struct {
 	parent *Scope
 }
 
-type macro struct {
-	t string
-	c *closure
-}
-
-func NewMacro(c *closure) macro {
-	return macro{"", c}
-}
-
-func (m macro) String() string {
-	return "#<macro>"
-}
-
-func (m macro) Apply(args []Any) Any {
-	for i, v := range m.c.vars {
-		m.c.s.env[v.(Symbol)] = args[i]
-	}
-
-	evaled := m.c.s.EvalAll(m.c.body)
-	return evaled[len(evaled)-1]
-}
-
 func NewRootScope() *Scope {
-	s := &Scope{make(Environment), nil}
+	s := NewScope(nil)
 	for k, v := range Builtins {
 		s.env[k] = v
 	}
@@ -47,36 +25,21 @@ func NewScope(parent *Scope) *Scope {
 	return &Scope{make(Environment), parent}
 }
 
-func (s *Scope) macroExpand(sexp Any) Any {
-	switch sexp := sexp.(type) {
-	case []Any:
-		f := sexp[0]
-		switch f := f.(type) {
-		case Symbol:
-			m, err := s.Lookup(f)
-			if err != nil {
-				panic(err)
-			}
+func (s *Scope) evalFunctionCall(sexp []Any) Any {
+	f := s.Eval(sexp[0])
 
-			_, ok := m.(macro)
-			if !ok {
-				return sexp
-			} else {
-				fmt.Println(m.(macro).Apply(sexp[1:]))
-			}
-			return sexp
-		default:
-			return sexp
-		}
+	switch fn := f.(type) {
+	case Function:
+		return fn.Apply(s, sexp[1:])
+	case ApplyFn:
+		return fn(s, sexp[1:])
 	default:
-		return sexp
+		panic(fmt.Errorf("Not a function (main): %s", sexp[0]))
 	}
-
-	panic("can't get here")
 }
 
 func (s *Scope) Eval(sexp Any) Any {
-	// sexp = s.macroExpand(sexp)
+
 	switch sexp := sexp.(type) {
 	case []Any:
 		if len(sexp) < 1 {
@@ -106,28 +69,19 @@ func (s *Scope) EvalAll(sexps []Any) []Any {
 	return res
 }
 
-func (s *Scope) evalFunctionCall(sexp []Any) Any {
-	f := s.Eval(sexp[0])
-
-	switch fn := f.(type) {
-	case Function:
-		return fn.Apply(sexp[1:])
-	case ApplyFn:
-		return fn(s, sexp[1:])
-	default:
-		panic(fmt.Errorf("Not a function (main): %s", sexp[0]))
-	}
-}
-
-func (e Environment) Add(s Symbol, val Any) error {
-	_, ok := e[Symbol(s)]
+func (s *Scope) Add(sym Symbol, val Any) error {
+	_, ok := s.env[sym]
 
 	if ok {
 		return fmt.Errorf("symbol: \"%s\" already defined in this scope", s)
 	}
 
-	e[s] = val
+	s.env[sym] = val
 	return nil
+}
+
+func (s *Scope) Override(sym Symbol, val Any) {
+	s.env[sym] = val
 }
 
 func (s *Scope) Lookup(sym Symbol) (Any, error) {
@@ -140,29 +94,4 @@ func (s *Scope) Lookup(sym Symbol) (Any, error) {
 	}
 
 	return val, nil
-}
-
-type ApplyFn func(s *Scope, args []Any) Any
-type Function interface {
-	Apply([]Any) Any
-}
-
-type closure struct {
-	s          *Scope
-	vars, body []Any
-}
-
-func (c *closure) Apply(args []Any) Any {
-	c.s = NewScope(c.s)
-	args = c.s.EvalAll(args)
-	for i, v := range c.vars {
-		c.s.env[v.(Symbol)] = args[i]
-	}
-
-	evaled := c.s.EvalAll(c.body)
-	return evaled[len(evaled)-1]
-}
-
-func (c *closure) String() string {
-	return "#<closure>"
 }

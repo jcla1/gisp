@@ -25,6 +25,7 @@ const (
 	_STRING
 	_FLOAT
 	_BOOL
+	_QUOTE
 )
 
 func (t tokenType) String() string {
@@ -47,6 +48,8 @@ func (t tokenType) String() string {
 		return "FLOAT"
 	case _BOOL:
 		return "BOOL"
+	case _QUOTE:
+		return "'"
 	default:
 		return "WTF!?"
 	}
@@ -160,6 +163,8 @@ func lexOpenParen(l *lexer) stateFn {
 	switch r {
 	case ' ', '\t', '\n', '\r':
 		return lexWhitespace
+	case '\'':
+		return lexQuote
 	case '(':
 		return lexOpenParen
 	case ')':
@@ -197,6 +202,34 @@ func lexBool(l *lexer) stateFn {
 	return l.errorf("unexpected tokens")
 }
 
+func lexQuote(l *lexer) stateFn {
+	debug("--> lexQuote")
+	l.acceptRun(" ")
+	l.ignore()
+	l.emit(_QUOTE)
+
+	r := l.next()
+
+	switch r {
+	case '"':
+		return lexString
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '#':
+		return lexBool
+	case '\'':
+		return lexQuote
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+}
+
 func lexWhitespace(l *lexer) stateFn {
 	debug("--> lexWhitespace")
 	l.ignore()
@@ -205,6 +238,8 @@ func lexWhitespace(l *lexer) stateFn {
 	switch r {
 	case ' ', '\t', '\n':
 		return lexWhitespace
+	case '\'':
+		return lexQuote
 	case '"':
 		return lexString
 	case '(':
@@ -385,8 +420,10 @@ func parse(l *lexer, p []Any) []Any {
 
 	for {
 		t := l.nextToken()
-		if t.typ == _EOF || t.typ == _INVALID {
+		if t.typ == _EOF {
 			break
+		} else if t.typ == _INVALID {
+			panic("syntax error")
 		}
 
 		if t.typ == _LPAREN {
@@ -397,6 +434,9 @@ func parse(l *lexer, p []Any) []Any {
 		} else {
 			var v Any
 			switch t.typ {
+			case _QUOTE:
+				nextExp := parse(l, []Any{})
+				return append(append(p, []Any{Symbol("quote"), nextExp[0]}), nextExp[1:]...)
 			case _INT:
 				v, _ = strconv.ParseInt(t.val, 10, 0)
 			case _FLOAT:
@@ -449,17 +489,16 @@ func main() {
 	s := NewRootScope()
 	for {
 		fmt.Print(">> ")
-		line, prefix, err := r.ReadLine()
-		if prefix {
-			fmt.Println("(prefix)")
-		}
+		line, _, err := r.ReadLine()
+
 		if err != nil {
 			fmt.Println("error: ", err)
 			continue
 		}
+
 		l := lex(string(line) + "\n")
 		p := parse(l, []Any{})
-
+		fmt.Println(p)
 		res := s.EvalAll(p)
 		if len(res) > 0 {
 			fmt.Println(res[len(res)-1])
