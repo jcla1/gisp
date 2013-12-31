@@ -26,6 +26,9 @@ const (
 	_FLOAT
 	_BOOL
 	_QUOTE
+	_QUASIQUOTE
+	_UNQUOTE
+	_UNQUOTESPLICE
 )
 
 func (t tokenType) String() string {
@@ -50,6 +53,12 @@ func (t tokenType) String() string {
 		return "BOOL"
 	case _QUOTE:
 		return "'"
+	case _QUASIQUOTE:
+		return "`"
+	case _UNQUOTE:
+		return ","
+	case _UNQUOTESPLICE:
+		return ",@"
 	default:
 		return "WTF!?"
 	}
@@ -165,6 +174,10 @@ func lexOpenParen(l *lexer) stateFn {
 		return lexWhitespace
 	case '\'':
 		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
 	case '(':
 		return lexOpenParen
 	case ')':
@@ -221,6 +234,111 @@ func lexQuote(l *lexer) stateFn {
 		return lexBool
 	case '\'':
 		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+}
+
+func lexQuasiquote(l *lexer) stateFn {
+	debug("--> lexQuasiquote")
+	l.acceptRun(" ")
+	l.ignore()
+	l.emit(_QUASIQUOTE)
+
+	r := l.next()
+
+	switch r {
+	case '"':
+		return lexString
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '#':
+		return lexBool
+	case '\'':
+		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+}
+
+func lexUnquote(l *lexer) stateFn {
+	debug("--> lexUnquote")
+
+	if l.peek() == '@' {
+		return lexUnquoteSplice
+	}
+
+	l.acceptRun(" ")
+	l.ignore()
+	l.emit(_UNQUOTE)
+
+	r := l.next()
+
+	switch r {
+	case '"':
+		return lexString
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '#':
+		return lexBool
+	case '\'':
+		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+}
+
+func lexUnquoteSplice(l *lexer) stateFn {
+	r := l.next()
+	l.acceptRun(" ")
+	l.ignore()
+	l.emit(_UNQUOTESPLICE)
+
+	r = l.next()
+
+	switch r {
+	case '"':
+		return lexString
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '#':
+		return lexBool
+	case '\'':
+		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
 	}
 
 	if unicode.IsDigit(r) {
@@ -240,6 +358,10 @@ func lexWhitespace(l *lexer) stateFn {
 		return lexWhitespace
 	case '\'':
 		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
 	case '"':
 		return lexString
 	case '(':
@@ -434,6 +556,15 @@ func parse(l *lexer, p []Any) []Any {
 		} else {
 			var v Any
 			switch t.typ {
+			case _UNQUOTESPLICE:
+				nextExp := parse(l, []Any{})
+				return append(append(p, []Any{Symbol("unquote-splice"), nextExp[0]}), nextExp[1:]...)
+			case _UNQUOTE:
+				nextExp := parse(l, []Any{})
+				return append(append(p, []Any{Symbol("unquote"), nextExp[0]}), nextExp[1:]...)
+			case _QUASIQUOTE:
+				nextExp := parse(l, []Any{})
+				return append(append(p, []Any{Symbol("quasiquote"), nextExp[0]}), nextExp[1:]...)
 			case _QUOTE:
 				nextExp := parse(l, []Any{})
 				return append(append(p, []Any{Symbol("quote"), nextExp[0]}), nextExp[1:]...)

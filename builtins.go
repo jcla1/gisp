@@ -5,14 +5,16 @@ import (
 )
 
 var Builtins = map[Symbol]ApplyFn{
-	"quote":  quote,
-	"lambda": lambda,
-	"define": define,
-	"if":     iff,
+	"quote":      quote,
+	"quasiquote": quasiquote,
+	"lambda":     lambda,
+	"define":     define,
+	"if":         iff,
 	// wrapped funcs
 	"==":      equality,
 	"+":       addition,
 	"-":       subtraction,
+	"eval":    eval,
 	"true?":   True,
 	"assert":  assert,
 	"println": println,
@@ -20,6 +22,7 @@ var Builtins = map[Symbol]ApplyFn{
 
 // The "u" stands for unwrapped
 var (
+	eval        = wrap(wrap(uEval))
 	equality    = wrap(uEquality)
 	addition    = wrap(uAddition)
 	subtraction = wrap(uSubtraction)
@@ -37,6 +40,49 @@ func wrap(fn ApplyFn) ApplyFn {
 
 func quote(s *Scope, args []Any) Any {
 	return args[0]
+}
+
+func quasiquote(s *Scope, args []Any) Any {
+	switch arg := args[0].(type) {
+	case []Any:
+		args[0] = resolveUnquoteSplices(s, resolveUnquotes(s, arg).([]Any))
+	}
+	return args[0]
+}
+
+func resolveUnquotes(s *Scope, sexp []Any) Any {
+	if sexp[0] == Symbol("unquote") {
+		return s.Eval(sexp[1])
+	}
+
+	for i, val := range sexp {
+		switch val := val.(type) {
+		case []Any:
+			if len(val) > 0 && sexp[0] != Symbol("quasiquote") {
+				sexp[i] = resolveUnquotes(s, val)
+			}
+		}
+	}
+
+	return sexp
+}
+
+func resolveUnquoteSplices(s *Scope, sexp []Any) Any {
+	if sexp[0] == Symbol("unquote-splice") {
+		return s.Eval(sexp[1])
+	}
+
+	for i, val := range sexp {
+		switch val := val.(type) {
+		case []Any:
+			if len(val) > 0 && sexp[0] != Symbol("quasiquote") {
+				a := resolveUnquoteSplices(s, val).([]Any)
+				sexp = append(sexp[:i], append(a, sexp[i+1:]...)...)
+			}
+		}
+	}
+
+	return sexp
 }
 
 func lambda(s *Scope, args []Any) Any {
@@ -60,6 +106,10 @@ func iff(s *Scope, args []Any) Any {
 
 // Wrapped functions
 // -----------------
+
+func uEval(s *Scope, args []Any) Any {
+	return args[len(args)-1]
+}
 
 func uEquality(s *Scope, args []Any) Any {
 	for i := 1; i < len(args); i++ {
