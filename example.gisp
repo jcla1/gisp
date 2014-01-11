@@ -1,4 +1,35 @@
-(define m (macro () (lambda (x) (println x))))
+(define defn (macro (name params & body)
+    `(define ,name (lambda ,params ,@body))))
 
-((lambda (x) (println x)) 10)
-(m (lambda () 10) (lambda () 20))
+(define defmacro (macro (name params & body)
+    `(define ,name (macro ,params ,@body))))
+
+(defn id (x)
+    x)
+
+(defn not (x)
+    (if x #f #t))
+
+(defn false? (x)
+    (not (true? x)))
+
+(defn zero? (x)
+    (if (== x 0) #t (== x 0.0)))
+
+(defn apply (fn xs)
+    (eval `(,fn ,@xs)))
+
+(defn inc (x)
+    (+ x 1))
+
+(defn dec
+    (x) (- x 1))
+
+(defmacro unless (condition & body)
+    `(if (not ,condition) (begin ,@body)))
+
+(defmacro fn (a b c & rest)
+    (let ((x (inc a)) (y (dec b)))
+        `(if (== ,x ,y)
+            ,c
+            (begin ,@rest))))

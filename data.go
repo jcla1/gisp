@@ -29,6 +29,9 @@ func (s *Scope) evalFunctionCall(sexp []Any) Any {
 	f := s.Eval(sexp[0])
 
 	switch fn := f.(type) {
+	case Macro:
+		expansion := internalMacroExpand(s, sexp)
+		return s.Eval(expansion)
 	case Function:
 		return fn.Apply(s, sexp[1:])
 	case ApplyFn:
@@ -82,6 +85,14 @@ func (s *Scope) Add(sym Symbol, val Any) error {
 
 func (s *Scope) Override(sym Symbol, val Any) {
 	s.env[sym] = val
+}
+
+func (s *Scope) getRootScope() *Scope {
+	if s.parent == nil {
+		return s
+	} else {
+		return s.parent.getRootScope()
+	}
 }
 
 func (s *Scope) Lookup(sym Symbol) (Any, error) {

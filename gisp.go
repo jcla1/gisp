@@ -11,8 +11,6 @@ import (
 	"unicode/utf8"
 )
 
-var DEBUG = false
-
 type tokenType int
 
 const (
@@ -162,7 +160,6 @@ func (l *lexer) nextToken() token {
 
 // lexes an open parenthesis
 func lexOpenParen(l *lexer) stateFn {
-	debug("--> lexOpenParen")
 
 	l.emit(_LPAREN)
 	l.parenDepth++
@@ -196,9 +193,7 @@ func lexOpenParen(l *lexer) stateFn {
 }
 
 func lexBool(l *lexer) stateFn {
-	debug("--> lexBool")
 	l.accept("tf")
-
 	l.emit(_BOOL)
 
 	r := l.next()
@@ -216,7 +211,6 @@ func lexBool(l *lexer) stateFn {
 }
 
 func lexQuote(l *lexer) stateFn {
-	debug("--> lexQuote")
 	l.acceptRun(" ")
 	l.ignore()
 	l.emit(_QUOTE)
@@ -248,7 +242,6 @@ func lexQuote(l *lexer) stateFn {
 }
 
 func lexQuasiquote(l *lexer) stateFn {
-	debug("--> lexQuasiquote")
 	l.acceptRun(" ")
 	l.ignore()
 	l.emit(_QUASIQUOTE)
@@ -280,7 +273,6 @@ func lexQuasiquote(l *lexer) stateFn {
 }
 
 func lexUnquote(l *lexer) stateFn {
-	debug("--> lexUnquote")
 
 	if l.peek() == '@' {
 		return lexUnquoteSplice
@@ -349,7 +341,6 @@ func lexUnquoteSplice(l *lexer) stateFn {
 }
 
 func lexWhitespace(l *lexer) stateFn {
-	debug("--> lexWhitespace")
 	l.ignore()
 	r := l.next()
 
@@ -482,7 +473,6 @@ func lexSymbol(l *lexer) stateFn {
 
 // lex a close parenthesis
 func lexCloseParen(l *lexer) stateFn {
-	debug("--> lexCloseParen")
 	l.emit(_RPAREN)
 	l.parenDepth--
 	if l.parenDepth < 0 {
@@ -505,7 +495,6 @@ func lexCloseParen(l *lexer) stateFn {
 
 // lexes a comment
 func lexComment(l *lexer) stateFn {
-	debug("--> lexComment")
 
 	r := l.next()
 
@@ -590,14 +579,7 @@ func parse(l *lexer, p []Any) []Any {
 	return p
 }
 
-func debug(s string) {
-	if DEBUG {
-		fmt.Println(s)
-	}
-}
-
-func args() {
-	filename := os.Args[1]
+func args(filename string) {
 	b, err := ioutil.ReadFile(filename)
 	if err != nil {
 		panic(err)
@@ -605,19 +587,31 @@ func args() {
 	l := lex(string(b) + "\n")
 	p := parse(l, []Any{})
 
-	s := NewRootScope()
-	s.EvalAll(p)
+	s := NewScope(NewRootScope())
+	res := s.EvalAll(p)
+	if len(res) > 0 {
+		fmt.Println(res[len(res)-1])
+	}
 
 }
 
 func main() {
 	if len(os.Args) > 1 {
-		args()
+		args(os.Args[1])
 		return
 	}
 
 	r := bufio.NewReader(os.Stdin)
-	s := NewRootScope()
+	s := NewScope(NewRootScope())
+
+	b, err := ioutil.ReadFile("prelude.gisp")
+	if err != nil {
+		panic(err)
+	}
+	l := lex(string(b) + "\n")
+	p := parse(l, []Any{})
+	s.EvalAll(p)
+
 	for {
 		fmt.Print(">> ")
 		line, _, err := r.ReadLine()

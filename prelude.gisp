@@ -1,8 +1,34 @@
-(define id (lambda (x) x))
-(define not (lambda (x) (if x #f #t)))
-(define false? (lambda (x) (not (true? x))))
-(define zero? (lambda (x) (if (== x 0) #t (== x 0.0))))
+(define defn (macro (name params & body)
+    `(define ,name (lambda ,params ,@body))))
 
+(define defmacro (macro (name params & body)
+    `(define ,name (macro ,params ,@body))))
+
+(defn id (x)
+    "This is the identity function, it returns its argument"
+    x)
+
+(defn not (x)
+    (if x #f #t))
+
+(defn false? (x)
+    (not (true? x)))
+
+(defn zero? (x)
+    (if (== x 0) #t (== x 0.0)))
+
+(defmacro apply (fn xs)
+    `(,fn ,@,xs))
+
+(defn inc (x)
+    (+ x 1))
+
+(defn dec (x)
+    (- x 1))
+
+(println "prelude loaded!")
+
+; assertions from here on
 (assert (not (not #t)))
 (assert (not #f))
 (assert (zero? 0))
@@ -11,7 +37,3 @@
 
 (assert (true? #t))
 (assert (false? #f))
-
-(define f (lambda (x) (lambda (y) (+ x y))))
-
-(println "success!")
