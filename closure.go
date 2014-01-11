@@ -16,8 +16,8 @@ type closure struct {
 }
 
 func (c *closure) Apply(s *Scope, args []Any) Any {
-	args = s.EvalAll(args)
-	c.s = NewScope(s)
+	args = c.s.EvalAll(args)
+	c.s = NewScope(c.s)
 	for i := 0; i < len(c.vars); i++ {
 		v := c.vars[i]
 		if v != Symbol("&") {

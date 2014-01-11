@@ -115,9 +115,7 @@ func resolveUnquoteSplices(s *Scope, sexp []Any) Any {
 }
 
 func lambda(s *Scope, args []Any) Any {
-	// We don't assign a scope here, because
-	// it is passed to fn.Apply when it is called
-	return &closure{nil, args[0].([]Any), args[1:]}
+	return &closure{s, args[0].([]Any), args[1:]}
 }
 
 func newMacro(s *Scope, args []Any) Any {
