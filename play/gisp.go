@@ -2,8 +2,9 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"regexp"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
@@ -11,6 +12,9 @@ import (
 	"unicode/utf8"
 )
 
+
+type Any interface{}
+type Symbol string
 type tokenType int
 
 const (
@@ -515,18 +519,6 @@ func lex(input string) *lexer {
 	return l
 }
 
-type Pair struct {
-	car, cdr interface{}
-}
-
-func (p *Pair) String() string {
-	return fmt.Sprintf("(%v %v)", p.car, p.cdr)
-}
-
-func Cons(car, cdr interface{}) *Pair {
-	return &Pair{car, cdr}
-}
-
 func parse(l *lexer, p []Any) []Any {
 
 	for {
@@ -579,54 +571,29 @@ func parse(l *lexer, p []Any) []Any {
 	return p
 }
 
-func args(filename string) {
-	b, err := ioutil.ReadFile(filename)
-	if err != nil {
-		panic(err)
-	}
-	l := lex(string(b) + "\n")
-	p := parse(l, []Any{})
 
-	s := NewScope(NewRootScope())
-	res := s.EvalAll(p)
-	if len(res) > 0 {
-		fmt.Println(res[len(res)-1])
-	}
+func CamelCase(src string)(string){
+        var camelingRegex = regexp.MustCompile("[0-9A-Za-z]+")
+        byteSrc := []byte(src)
+        chunks := camelingRegex.FindAll(byteSrc, -1)
+        for idx, val := range chunks {
+                //if idx > 0 { chunks[idx] = bytes.Title(val) }
+                chunks[idx] = bytes.Title(val)
+        }
 
+        return string(bytes.Join(chunks, nil)) 
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		args(os.Args[1])
-		return
-	}
-
+	fmt.Println(CamelCase("this-is-a-clojure-name"))
 	r := bufio.NewReader(os.Stdin)
-	s := NewScope(NewRootScope())
-
-	b, err := ioutil.ReadFile("prelude.gisp")
-	if err != nil {
-		panic(err)
-	}
-	l := lex(string(b) + "\n")
-	p := parse(l, []Any{})
-	s.EvalAll(p)
 
 	for {
 		fmt.Print(">> ")
-		line, _, err := r.ReadLine()
-
-		if err != nil {
-			fmt.Println("error: ", err)
-			continue
-		}
+		line, _, _ := r.ReadLine()
 
 		l := lex(string(line) + "\n")
 		p := parse(l, []Any{})
 		fmt.Printf("%#v\n", p)
-		res := s.EvalAll(p)
-		if len(res) > 0 {
-			fmt.Println(res[len(res)-1])
-		}
 	}
 }
