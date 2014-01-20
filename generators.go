@@ -79,6 +79,12 @@ func evalExpr(sexp Any) ast.Expr {
 }
 
 func evalFuncCall(sexp []Any) ast.Expr {
+    tok, ok := sexp[0].(astToken)
+
+    if tok.Value == "fn" && ok {
+        return makeFuncLit(sexp[1].([]Any), sexp[2:])
+    }
+
     return makeFunCall(evalExpr(sexp[0]), sexp[1:])
 }
 
@@ -133,7 +139,7 @@ func makeFuncLit(args, body []Any) *ast.FuncLit {
 func makeIdentSlice(args []Any) []*ast.Ident {
 	out := make([]*ast.Ident, len(args))
 	for i, v := range args {
-		out[i] = makeIdent(v.(string))
+		out[i] = makeIdent(v.(astToken).Value)
 	}
 	return out
 }

@@ -1,6 +1,6 @@
-(def MyFunc (lambda (x)
+(def MyFunc (fn (x)
     (println "Hello, World!")
     (* x x)))
 
-(def MyOtherFunc (do
-    (fmt/Println "Hello World, how are you?")))
+;(def main (fn [x y z]
+;    (fmt/println (* x y z))))
