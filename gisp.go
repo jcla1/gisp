@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bufio"
+	// "bufio"
 	"bytes"
 	"fmt"
 	"go/ast"
@@ -577,7 +577,7 @@ func parse(l *lexer, p []Any) []Any {
 					v = false
 				}
 			case _SYMBOL:
-				v = Symbol(t.val)
+				v = t.val
 			}
 			return parse(l, append(p, v))
 		}
@@ -602,7 +602,7 @@ func args(filename string) {
 
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, a)
-	fmt.Printf("\"%s\"\n", buf.String())
+	fmt.Printf("%s\n", buf.String())
 }
 
 func main() {
@@ -610,16 +610,20 @@ func main() {
 		args(os.Args[1])
 		return
 	}
+	fset := goToken.NewFileSet()
+	a := makeFuncLit([]Any{"arg1", "arg2"}, []Any{[]Any{"call", "10", "20"}, []Any{"another", "call"}})
+	var buf bytes.Buffer
+	printer.Fprint(&buf, fset, a)
+	fmt.Printf("%s\n", buf.String())
 
-	r := bufio.NewReader(os.Stdin)
+	// r := bufio.NewReader(os.Stdin)
 
-	for {
-		fmt.Print(">> ")
-		line, _, _ := r.ReadLine()
+	// for {
+	// 	fmt.Print(">> ")
+	// 	line, _, _ := r.ReadLine()
 
-		l := lex(string(line) + "\n")
-		p := parse(l, []Any{})
-		fmt.Printf("%#v\n", p)
-
-	}
+	// 	l := lex(string(line) + "\n")
+	// 	p := parse(l, []Any{})
+	// 	fmt.Printf("%#v\n", p)
+	// }
 }

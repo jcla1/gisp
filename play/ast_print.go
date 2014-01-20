@@ -13,19 +13,9 @@ func main() {
 	// src is the input for which we want to print the AST.
 	src := `
 package main
-type Any interface{}
-var MyExportedFunc = func(myArg, f Any) Any {
-	return f.(func(Any)Any)(10)
-}
-
-var ExportedVar = 10
-func main() {
-	x := "Hello, World!"
-	println(x)
-	{
-		x := 123
-		MyExportedFunc(x)
-	}
+var x = 10
+var MyFunc = func(arg1, arg2 Any, arg3 []Any) Any {
+	MyFunc(x)
 }
 `
 
