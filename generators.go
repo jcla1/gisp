@@ -69,7 +69,8 @@ func evalExpr(sexp Any) ast.Expr {
 }
 
 func evalFuncCall(sexp []Any) ast.Expr {
-	return makeLitFunCall(sexp)
+	// return makeLitFunCall(sexp)
+    return makeFunCall(evalExpr(sexp[0]), sexp[1:])
 }
 
 func makeLitFunCall(body []Any) ast.Expr {
@@ -87,9 +88,9 @@ func wrapExprsWithStmt(exps []ast.Expr) []ast.Stmt {
 	return out
 }
 
-func makeFunCall(name string, args []Any) ast.Expr {
+func makeFunCall(name ast.Expr, args []Any) ast.Expr {
 	return &ast.CallExpr{
-		Fun:  makeIdent(name),
+		Fun:  name,
 		Args: evalExprs(args),
 	}
 }
