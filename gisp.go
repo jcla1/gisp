@@ -2,7 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"go/ast"
+	"go/printer"
+	goToken "go/token"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -11,6 +15,8 @@ import (
 	"unicode/utf8"
 )
 
+type Any interface{}
+type Symbol string
 type tokenType int
 
 const (
@@ -586,13 +592,16 @@ func args(filename string) {
 	}
 	l := lex(string(b) + "\n")
 	p := parse(l, []Any{})
+	fmt.Printf("%#v\n\n\n", p)
 
-	s := NewScope(NewRootScope())
-	res := s.EvalAll(p)
-	if len(res) > 0 {
-		fmt.Println(res[len(res)-1])
-	}
+	a := generateAST(p)
 
+	fset := goToken.NewFileSet()
+	ast.Print(fset, a)
+
+	var buf bytes.Buffer
+	printer.Fprint(&buf, fset, a)
+	fmt.Printf("\"%s\"\n", buf.String())
 }
 
 func main() {
@@ -602,31 +611,14 @@ func main() {
 	}
 
 	r := bufio.NewReader(os.Stdin)
-	s := NewScope(NewRootScope())
-
-	b, err := ioutil.ReadFile("prelude.gisp")
-	if err != nil {
-		panic(err)
-	}
-	l := lex(string(b) + "\n")
-	p := parse(l, []Any{})
-	s.EvalAll(p)
 
 	for {
 		fmt.Print(">> ")
-		line, _, err := r.ReadLine()
-
-		if err != nil {
-			fmt.Println("error: ", err)
-			continue
-		}
+		line, _, _ := r.ReadLine()
 
 		l := lex(string(line) + "\n")
 		p := parse(l, []Any{})
 		fmt.Printf("%#v\n", p)
-		res := s.EvalAll(p)
-		if len(res) > 0 {
-			fmt.Println(res[len(res)-1])
-		}
+
 	}
 }

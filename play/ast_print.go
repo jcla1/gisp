@@ -14,12 +14,18 @@ func main() {
 	src := `
 package main
 type Any interface{}
-var MyExportedFunc = func(myArg Any) Any {
-	return 10
+var MyExportedFunc = func(myArg, f Any) Any {
+	return f.(func(Any)Any)(10)
 }
+
+var ExportedVar = 10
 func main() {
-	println("Hello, World!")
-	MyExportedFunc(123)
+	x := "Hello, World!"
+	println(x)
+	{
+		x := 123
+		MyExportedFunc(x)
+	}
 }
 `
 
@@ -30,13 +36,13 @@ func main() {
 		panic(err)
 	}
 
-	f.Scope = nil
-
+	// (f.Decls[0].(*ast.GenDecl)).Specs[0].Name.Obj = nil
+	// ((f.Decls[0].(*ast.GenDecl)).Specs[0].(*ast.TypeSpec).Name.Obj) = nil
 	ast.Print(fset, f)
 
 	// Print the AST.
 	var buf bytes.Buffer
-    	printer.Fprint(&buf, fset, f)
+    printer.Fprint(&buf, fset, f)
 	fmt.Println(buf.String())
 
 }
