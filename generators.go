@@ -25,7 +25,7 @@ func generateDeclarations(parsed []Any) []ast.Decl {
 }
 
 func generateDeclaration(sexp []Any) ast.Decl {
-	if sexp[0] == "def" {
+	if sexp[0].(astToken).Value == "def" {
 		return evalDef(sexp)
 	}
 
@@ -33,14 +33,14 @@ func generateDeclaration(sexp []Any) ast.Decl {
 }
 
 func evalDef(sexp []Any) ast.Decl {
-	ident := sexp[1].(string)
+	ident := sexp[1].(astToken)
 	val := evalExpr(sexp[2])
 
 	return &ast.GenDecl{
 		Tok: goToken.VAR,
 		Specs: []ast.Spec{
 			&ast.ValueSpec{
-				Names:  []*ast.Ident{makeIdent(ident)},
+				Names:  []*ast.Ident{makeIdent(ident.Value)},
 				Values: []ast.Expr{val},
 			},
 		},
@@ -62,14 +62,23 @@ func evalExpr(sexp Any) ast.Expr {
 	case []Any:
 		return evalFuncCall(sexp)
 	case Any:
-		return makeIdent(sexp.(string))
+        tok := sexp.(astToken)
+        switch tok.Type {
+        case "INT":
+            return makeBasicLit(goToken.INT, tok.Value)
+        case "STRING":
+            return makeBasicLit(goToken.STRING, tok.Value)
+        case "IDENT":
+            return makeIdent(tok.Value)
+        default:
+            panic("other datatype not implemented yet!")
+        }
 	default:
 		panic("oops!")
 	}
 }
 
 func evalFuncCall(sexp []Any) ast.Expr {
-	// return makeLitFunCall(sexp)
     return makeFunCall(evalExpr(sexp[0]), sexp[1:])
 }
 

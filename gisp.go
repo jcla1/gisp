@@ -9,7 +9,7 @@ import (
 	goToken "go/token"
 	"io/ioutil"
 	"os"
-	"strconv"
+	// "strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -76,6 +76,11 @@ type token struct {
 
 func (t token) String() string {
 	return fmt.Sprintf("%s", t.val)
+}
+
+type astToken struct {
+	Type string
+	Value string
 }
 
 const eof = -1
@@ -549,35 +554,35 @@ func parse(l *lexer, p []Any) []Any {
 		} else if t.typ == _RPAREN {
 			return p
 		} else {
-			var v Any
+			var v astToken
+			v.Value = t.val
 			switch t.typ {
-			case _UNQUOTESPLICE:
-				nextExp := parse(l, []Any{})
-				return append(append(p, []Any{Symbol("unquote-splice"), nextExp[0]}), nextExp[1:]...)
-			case _UNQUOTE:
-				nextExp := parse(l, []Any{})
-				return append(append(p, []Any{Symbol("unquote"), nextExp[0]}), nextExp[1:]...)
-			case _QUASIQUOTE:
-				nextExp := parse(l, []Any{})
-				return append(append(p, []Any{Symbol("quasiquote"), nextExp[0]}), nextExp[1:]...)
-			case _QUOTE:
-				nextExp := parse(l, []Any{})
-				return append(append(p, []Any{Symbol("quote"), nextExp[0]}), nextExp[1:]...)
+			// case _UNQUOTESPLICE:
+			// 	nextExp := parse(l, []Any{})
+			// 	return append(append(p, []Any{Symbol("unquote-splice"), nextExp[0]}), nextExp[1:]...)
+			// case _UNQUOTE:
+			// 	nextExp := parse(l, []Any{})
+			// 	return append(append(p, []Any{Symbol("unquote"), nextExp[0]}), nextExp[1:]...)
+			// case _QUASIQUOTE:
+			// 	nextExp := parse(l, []Any{})
+			// 	return append(append(p, []Any{Symbol("quasiquote"), nextExp[0]}), nextExp[1:]...)
+			// case _QUOTE:
+			// 	nextExp := parse(l, []Any{})
+			// 	return append(append(p, []Any{Symbol("quote"), nextExp[0]}), nextExp[1:]...)
 			case _INT:
-				// v, _ = strconv.ParseInt(t.val, 10, 0)
-				v = t.val
+				v.Type = "INT"
 			case _FLOAT:
-				v, _ = strconv.ParseFloat(t.val, 64)
+
 			case _STRING:
-				v = t.val[1 : len(t.val)-1]
-			case _BOOL:
-				if t.val == "#t" {
-					v = true
-				} else {
-					v = false
-				}
+				v.Type = "STRING"
+			// case _BOOL:
+			// 	if t.val == "#t" {
+			// 		v = true
+			// 	} else {
+			// 		v = false
+			// 	}
 			case _SYMBOL:
-				v = t.val
+				v.Type = "IDENT"
 			}
 			return parse(l, append(p, v))
 		}
