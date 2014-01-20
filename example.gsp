@@ -1,1 +1,2 @@
-(def a 10)
+(def MyFunc (fn (x)
+    (println "Hello, World!")))

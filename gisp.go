@@ -564,7 +564,8 @@ func parse(l *lexer, p []Any) []Any {
 				nextExp := parse(l, []Any{})
 				return append(append(p, []Any{Symbol("quote"), nextExp[0]}), nextExp[1:]...)
 			case _INT:
-				v, _ = strconv.ParseInt(t.val, 10, 0)
+				// v, _ = strconv.ParseInt(t.val, 10, 0)
+				v = t.val
 			case _FLOAT:
 				v, _ = strconv.ParseFloat(t.val, 64)
 			case _STRING:
