@@ -62,30 +62,30 @@ func evalExpr(sexp Any) ast.Expr {
 	case []Any:
 		return evalFuncCall(sexp)
 	case Any:
-        tok := sexp.(astToken)
-        switch tok.Type {
-        case "INT":
-            return makeBasicLit(goToken.INT, tok.Value)
-        case "STRING":
-            return makeBasicLit(goToken.STRING, tok.Value)
-        case "IDENT":
-            return makeIdent(tok.Value)
-        default:
-            panic("other datatype not implemented yet!")
-        }
+		tok := sexp.(astToken)
+		switch tok.Type {
+		case "INT":
+			return makeBasicLit(goToken.INT, tok.Value)
+		case "STRING":
+			return makeBasicLit(goToken.STRING, tok.Value)
+		case "IDENT":
+			return makeIdent(tok.Value)
+		default:
+			panic("other datatype not implemented yet!")
+		}
 	default:
 		panic("oops!")
 	}
 }
 
 func evalFuncCall(sexp []Any) ast.Expr {
-    tok, ok := sexp[0].(astToken)
+	tok, ok := sexp[0].(astToken)
 
-    if tok.Value == "fn" && ok {
-        return makeFuncLit(sexp[1].([]Any), sexp[2:])
-    }
+	if tok.Value == "fn" && ok {
+		return makeFuncLit(sexp[1].([]Any), sexp[2:])
+	}
 
-    return makeFunCall(evalExpr(sexp[0]), sexp[1:])
+	return makeFunCall(evalExpr(sexp[0]), sexp[1:])
 }
 
 func makeLitFunCall(body []Any) ast.Expr {
@@ -131,9 +131,22 @@ func makeFuncLit(args, body []Any) *ast.FuncLit {
 			},
 		},
 		Body: &ast.BlockStmt{
-			List: wrapExprsWithStmt(evalExprs(body)),
+			List: returnLast(wrapExprsWithStmt(evalExprs(body))),
 		},
 	}
+}
+
+func returnLast(stmts []ast.Stmt) []ast.Stmt {
+	if len(stmts) < 1 {
+		return stmts
+	}
+
+	stmts[len(stmts)-1] = &ast.ReturnStmt{
+        Results: []ast.Expr{
+            stmts[len(stmts)-1].(*ast.ExprStmt).X,
+        },
+    }
+	return stmts
 }
 
 func makeIdentSlice(args []Any) []*ast.Ident {

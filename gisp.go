@@ -79,7 +79,7 @@ func (t token) String() string {
 }
 
 type astToken struct {
-	Type string
+	Type  string
 	Value string
 }
 
