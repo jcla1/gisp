@@ -66,6 +66,8 @@ func evalExpr(sexp Any) ast.Expr {
 		switch tok.Type {
 		case "INT":
 			return makeBasicLit(goToken.INT, tok.Value)
+        case "FLOAT":
+            return makeBasicLit(goToken.FLOAT, tok.Value)
 		case "STRING":
 			return makeBasicLit(goToken.STRING, tok.Value)
 		case "IDENT":

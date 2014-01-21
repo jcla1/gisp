@@ -28,7 +28,6 @@ const (
 	_RPAREN
 	_STRING
 	_FLOAT
-	_BOOL
 	_QUOTE
 	_QUASIQUOTE
 	_UNQUOTE
@@ -53,8 +52,6 @@ func (t tokenType) String() string {
 		return "STRING"
 	case _FLOAT:
 		return "FLOAT"
-	case _BOOL:
-		return "BOOL"
 	case _QUOTE:
 		return "'"
 	case _QUASIQUOTE:
@@ -192,8 +189,6 @@ func lexOpenParen(l *lexer) stateFn {
 		return lexCloseParen
 	case ';':
 		return lexComment
-	case '#':
-		return lexBool
 	}
 
 	if unicode.IsDigit(r) {
@@ -201,24 +196,6 @@ func lexOpenParen(l *lexer) stateFn {
 	}
 
 	return lexSymbol
-}
-
-func lexBool(l *lexer) stateFn {
-	l.accept("tf")
-	l.emit(_BOOL)
-
-	r := l.next()
-
-	switch r {
-	case ' ', '\t', '\n':
-		return lexWhitespace
-	case ')':
-		return lexCloseParen
-	case ';':
-		return lexComment
-	}
-
-	return l.errorf("unexpected tokens")
 }
 
 func lexQuote(l *lexer) stateFn {
@@ -235,8 +212,6 @@ func lexQuote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
-	case '#':
-		return lexBool
 	case '\'':
 		return lexQuote
 	case '`':
@@ -266,8 +241,6 @@ func lexQuasiquote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
-	case '#':
-		return lexBool
 	case '\'':
 		return lexQuote
 	case '`':
@@ -302,8 +275,6 @@ func lexUnquote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
-	case '#':
-		return lexBool
 	case '\'':
 		return lexQuote
 	case '`':
@@ -334,8 +305,6 @@ func lexUnquoteSplice(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
-	case '#':
-		return lexBool
 	case '\'':
 		return lexQuote
 	case '`':
@@ -372,8 +341,6 @@ func lexWhitespace(l *lexer) stateFn {
 		return lexCloseParen
 	case ';':
 		return lexComment
-	case '#':
-		return lexBool
 	case eof:
 		if l.parenDepth > 0 {
 			return l.errorf("unclosed paren")
@@ -572,15 +539,9 @@ func parse(l *lexer, p []Any) []Any {
 			case _INT:
 				v.Type = "INT"
 			case _FLOAT:
-
+				v.Type = "FLOAT"
 			case _STRING:
 				v.Type = "STRING"
-			// case _BOOL:
-			// 	if t.val == "#t" {
-			// 		v = true
-			// 	} else {
-			// 		v = false
-			// 	}
 			case _SYMBOL:
 				v.Type = "IDENT"
 			}
