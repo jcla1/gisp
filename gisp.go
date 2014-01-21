@@ -9,7 +9,6 @@ import (
 	goToken "go/token"
 	"io/ioutil"
 	"os"
-	// "strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -26,6 +25,8 @@ const (
 	_SYMBOL
 	_LPAREN
 	_RPAREN
+	_LVECT
+	_RVECT
 	_STRING
 	_FLOAT
 	_QUOTE
@@ -95,6 +96,7 @@ type lexer struct {
 	lastPos    Pos
 	tokens     chan token
 	parenDepth int
+	vectDepth  int
 }
 
 func (l *lexer) run() {
@@ -166,6 +168,78 @@ func (l *lexer) nextToken() token {
 	return token
 }
 
+func lexOpenVect(l *lexer) stateFn {
+	l.emit(_LVECT)
+	l.vectDepth++
+
+	r := l.next()
+
+	switch r {
+	case ' ', '\t', '\n', '\r':
+		return lexWhitespace
+	case '\'':
+		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
+	case ';':
+		return lexComment
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+
+}
+
+func lexCloseVect(l *lexer) stateFn {
+	l.emit(_RVECT)
+	l.vectDepth--
+	if l.parenDepth < 0 {
+		return l.errorf("unexpected close paren [vect]")
+	}
+
+	r := l.next()
+
+	switch r {
+	case ' ', '\t', '\n', '\r':
+		return lexWhitespace
+	case '\'':
+		return lexQuote
+	case '`':
+		return lexQuasiquote
+	case ',':
+		return lexUnquote
+	case '(':
+		return lexOpenParen
+	case ')':
+		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
+	case ';':
+		return lexComment
+	}
+
+	if unicode.IsDigit(r) {
+		return lexInt
+	}
+
+	return lexSymbol
+}
+
 // lexes an open parenthesis
 func lexOpenParen(l *lexer) stateFn {
 
@@ -187,6 +261,10 @@ func lexOpenParen(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case ';':
 		return lexComment
 	}
@@ -212,6 +290,10 @@ func lexQuote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case '\'':
 		return lexQuote
 	case '`':
@@ -241,6 +323,10 @@ func lexQuasiquote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case '\'':
 		return lexQuote
 	case '`':
@@ -275,6 +361,10 @@ func lexUnquote(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case '\'':
 		return lexQuote
 	case '`':
@@ -305,6 +395,10 @@ func lexUnquoteSplice(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case '\'':
 		return lexQuote
 	case '`':
@@ -339,6 +433,10 @@ func lexWhitespace(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case ';':
 		return lexComment
 	case eof:
@@ -465,6 +563,10 @@ func lexCloseParen(l *lexer) stateFn {
 		return lexOpenParen
 	case ')':
 		return lexCloseParen
+	case '[':
+		return lexOpenVect
+	case ']':
+		return lexCloseVect
 	case ';':
 		return lexComment
 	}

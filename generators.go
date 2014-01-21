@@ -66,8 +66,8 @@ func evalExpr(sexp Any) ast.Expr {
 		switch tok.Type {
 		case "INT":
 			return makeBasicLit(goToken.INT, tok.Value)
-        case "FLOAT":
-            return makeBasicLit(goToken.FLOAT, tok.Value)
+		case "FLOAT":
+			return makeBasicLit(goToken.FLOAT, tok.Value)
 		case "STRING":
 			return makeBasicLit(goToken.STRING, tok.Value)
 		case "IDENT":
@@ -144,10 +144,10 @@ func returnLast(stmts []ast.Stmt) []ast.Stmt {
 	}
 
 	stmts[len(stmts)-1] = &ast.ReturnStmt{
-        Results: []ast.Expr{
-            stmts[len(stmts)-1].(*ast.ExprStmt).X,
-        },
-    }
+		Results: []ast.Expr{
+			stmts[len(stmts)-1].(*ast.ExprStmt).X,
+		},
+	}
 	return stmts
 }
 
@@ -161,6 +161,17 @@ func makeIdentSlice(args []Any) []*ast.Ident {
 
 func makeIdent(name string) *ast.Ident {
 	return ast.NewIdent(name)
+}
+
+func makeVector(typ string, elements []Any) ast.CompositeLit {
+    return makeCompositeLit(&ast.ArrayType{Elt: makeIdent(typ)}, evalExprs(elements))
+}
+
+func makeCompositeLit(typ ast.Expr, elements []ast.Expr) *ast.CompositeLit {
+    return &ast.CompositeLit{
+        Type: typ,
+        Elts: elements,
+    }
 }
 
 func makeBasicLit(kind goToken.Token, value string) *ast.BasicLit {

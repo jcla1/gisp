@@ -3,5 +3,10 @@
     (times x x)
     ((fn (y) (id y)) x)))
 
-;(def main (fn [x y z]
-;    (fmt/println (* x y z))))
+; var square = func(x Any) Any {
+;     println("Hello, World!")
+;     times(x, x)
+;     return func(y Any) Any {
+;         id(y)
+;     }(x)
+; }

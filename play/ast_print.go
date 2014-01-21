@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -13,10 +14,9 @@ func main() {
 	// src is the input for which we want to print the AST.
 	src := `
 package main
-var x = 10
-var MyFunc = func(arg1, arg2 Any, arg3 []Any) Any {
-	MyFunc(x)
-}
+var x = []int{1,2,3}
+var y = []Any{1,2,3}
+var z = []int{}
 `
 
 	// Create the AST by parsing src.
