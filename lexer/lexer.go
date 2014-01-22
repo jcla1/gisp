@@ -1,4 +1,4 @@
-package Lexer
+package lexer
 
 import (
 	"fmt"
@@ -10,8 +10,8 @@ import (
 type Pos int
 
 type Item struct {
-	Typ ItemType
-	Pos Pos
+	Typ   ItemType
+	Pos   Pos
 	Value string
 }
 
@@ -113,9 +113,9 @@ func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
 }
 
 func (l *Lexer) NextItem() Item {
-	Item := <-l.items
-	l.lastPos = Item.pos
-	return Item
+	item := <-l.items
+	l.lastPos = item.Pos
+	return item
 }
 
 func Lex(name, input string) *Lexer {
@@ -155,39 +155,39 @@ func lexLeftParen(l *Lexer) stateFn {
 }
 
 func lexWhitespace(l *Lexer) stateFn {
-    atLeastOne := false
+	atLeastOne := false
 	for r := l.next(); isSpace(r) || r == '\n'; {
-        // just absorb the spaces
-        atLeastOne = true
+		// just absorb the spaces
+		atLeastOne = true
 	}
 
-    if atLeastOne {
-        l.backup()
-        l.ignore()
-    }
+	if atLeastOne {
+		l.backup()
+		l.ignore()
+	}
 
-    switch r := l.next(); {
-    case r == EOF:
-        return nil
-    case r == '(':
-        return lexLeftParen
-    case r == ')':
-        return lexRightParen
-    case r == '[':
-        return lexLeftVect
-    case r == ']':
-        return lexRightVect
-    case r == '"':
-        return lexString
-    case r == '+' || r == '-' || ('0' <= r && r <= '9'):
-        return lexNumber
-    case r == ';':
-        return lexComment
-    case isAlphaNumeric(r):
-        return lexIdentifier
-    }
+	switch r := l.next(); {
+	case r == EOF:
+		return nil
+	case r == '(':
+		return lexLeftParen
+	case r == ')':
+		return lexRightParen
+	case r == '[':
+		return lexLeftVect
+	case r == ']':
+		return lexRightVect
+	case r == '"':
+		return lexString
+	case r == '+' || r == '-' || ('0' <= r && r <= '9'):
+		return lexNumber
+	case r == ';':
+		return lexComment
+	case isAlphaNumeric(r):
+		return lexIdentifier
+	}
 
-    return lexWhitespace
+	return lexWhitespace
 }
 
 func lexString(l *Lexer) stateFn {

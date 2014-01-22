@@ -3,15 +3,14 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"regexp"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
-
 
 type Any interface{}
 type Symbol string
@@ -571,17 +570,16 @@ func parse(l *lexer, p []Any) []Any {
 	return p
 }
 
+func CamelCase(src string) string {
+	var camelingRegex = regexp.MustCompile("[0-9A-Za-z]+")
+	byteSrc := []byte(src)
+	chunks := camelingRegex.FindAll(byteSrc, -1)
+	for idx, val := range chunks {
+		//if idx > 0 { chunks[idx] = bytes.Title(val) }
+		chunks[idx] = bytes.Title(val)
+	}
 
-func CamelCase(src string)(string){
-        var camelingRegex = regexp.MustCompile("[0-9A-Za-z]+")
-        byteSrc := []byte(src)
-        chunks := camelingRegex.FindAll(byteSrc, -1)
-        for idx, val := range chunks {
-                //if idx > 0 { chunks[idx] = bytes.Title(val) }
-                chunks[idx] = bytes.Title(val)
-        }
-
-        return string(bytes.Join(chunks, nil)) 
+	return string(bytes.Join(chunks, nil))
 }
 
 func main() {

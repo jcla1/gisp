@@ -1,11 +1,11 @@
 package main
 
 var square = func(x Any) Any {
-    println("Hello, World!")
-    times(x, x)
-    return func(y Any) Any {
-        return id(y)
-    }(x)
+	println("Hello, World!")
+	times(x, x)
+	return func(y Any) Any {
+		return id(y)
+	}(x)
 }
 
 // Output ends here!
@@ -13,13 +13,13 @@ var square = func(x Any) Any {
 type Any interface{}
 
 func times(x, y Any) int {
-    return x.(int) * y.(int)
+	return x.(int) * y.(int)
 }
 
 func id(y Any) Any {
-    return y
+	return y
 }
 
 func main() {
-    square(10)
+	square(10)
 }

@@ -1,13 +1,12 @@
-
 package main
 
 import (
+	"bytes"
+	"fmt"
 	"go/ast"
 	"go/parser"
-	"go/token"
 	"go/printer"
-	"fmt"
-	"bytes"
+	"go/token"
 )
 
 func main() {
@@ -32,8 +31,7 @@ var z = []int{}
 
 	// Print the AST.
 	var buf bytes.Buffer
-    printer.Fprint(&buf, fset, f)
+	printer.Fprint(&buf, fset, f)
 	fmt.Println(buf.String())
 
 }
-
