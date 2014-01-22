@@ -1,36 +1,33 @@
 package main
 
 import (
+	"./lexer"
 	"bufio"
 	"bytes"
 	"fmt"
-	// "go/ast"
 	"go/printer"
 	goToken "go/token"
 	"io/ioutil"
 	"os"
-	"strings"
-	"unicode"
-	"unicode/utf8"
 )
 
 type Any interface{}
 type Symbol string
 
-func parse(l *lexer, p []Any) []Any {
+func parse(l *lexer.Lexer, p []Any) []Any {
 
 	for {
 		t := l.nextToken()
-		if t.typ == _EOF {
+		if t.Typ == lexer.ItemEOF {
 			break
-		} else if t.typ == _INVALID {
-			panic("syntax error")
+		} else if t.Typ == lexer.ItemError {
+			panic(t.Value)
 		}
 
-		if t.typ == _LPAREN {
+		if t.Typ == lexer.ItemLeftParen {
 			p = append(p, parse(l, []Any{}))
 			return parse(l, p)
-		} else if t.typ == _RPAREN {
+		} else if t.Typ == lexer.ItemRightParen {
 			return p
 		} else {
 			var v astToken
@@ -69,14 +66,13 @@ func args(filename string) {
 	if err != nil {
 		panic(err)
 	}
-	l := lex(string(b) + "\n")
+	l := lexer.Lex(string(b) + "\n")
 	p := parse(l, []Any{})
-	// fmt.Printf("%#v\n\n\n", p)
 
 	a := generateAST(p)
 
 	fset := goToken.NewFileSet()
-	// ast.Print(fset, a)
+	ast.Print(fset, a)
 
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, a)
@@ -95,7 +91,7 @@ func main() {
 		fmt.Print(">> ")
 		line, _, _ := r.ReadLine()
 
-		l := lex(string(line) + "\n")
+		l := lexer.Lex(string(line) + "\n")
 		p := parse(l, []Any{})
 
 		a := generateAST(p)

@@ -1,542 +1,305 @@
-package lexer
+package Lexer
+
+import (
+	"fmt"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
 
 type Pos int
 
-type item struct {
-    typ itemType
-    pos Pos
-    val string
+type Item struct {
+	Typ ItemType
+	Pos Pos
+	Value string
 }
 
-type itemType int
+type ItemType int
 
 const (
-    itemError itemType = iota
-    itemEOF
+	ItemError ItemType = iota
+	ItemEOF
 
-    itemLeftParen
-    itemRightParen
-    itemLeftVect
-    itemRightVect
+	ItemLeftParen
+	ItemRightParen
+	ItemLeftVect
+	ItemRightVect
 
-    itemIdent
-    itemString
-    itemChar
-    itemFloat
-    itemInt
+	ItemIdent
+	ItemString
+	ItemChar
+	ItemFloat
+	ItemInt
+	ItemComplex
 
-    itemQuote
-    itemQuasiQuote
-    itemUnquote
-    itemUnquoteSplice
+	ItemQuote
+	ItemQuasiQuote
+	ItemUnquote
+	ItemUnquoteSplice
 )
 
-const eof = -1
+const EOF = -1
 
-type stateFn func(*lexer) stateFn
+type stateFn func(*Lexer) stateFn
 
-type lexer struct {
-    name    string
-    input   string
-    state   stateFn
-    pos     Pos
-    start   Pos
-    width   Pos
-    lastPos Pos
-    items   chan item
+type Lexer struct {
+	name    string
+	input   string
+	state   stateFn
+	pos     Pos
+	start   Pos
+	width   Pos
+	lastPos Pos
+	items   chan Item
 
-    parenDepth int
-    vectDepth  int
+	parenDepth int
+	vectDepth  int
 }
 
 // next returns the next rune in the input.
-func (l *lexer) next() rune {
-    if int(l.pos) >= len(l.input) {
-        l.width = 0
-        return eof
-    }
-    r, w := utf8.DecodeRuneInString(l.input[l.pos:])
-    l.width = Pos(w)
-    l.pos += l.width
-    return r
+func (l *Lexer) next() rune {
+	if int(l.pos) >= len(l.input) {
+		l.width = 0
+		return EOF
+	}
+	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
+	l.width = Pos(w)
+	l.pos += l.width
+	return r
 }
 
 // peek returns but does not consume the next rune in the input.
-func (l *lexer) peek() rune {
-    r := l.next()
-    l.backup()
-    return r
+func (l *Lexer) peek() rune {
+	r := l.next()
+	l.backup()
+	return r
 }
 
 // backup steps back one rune. Can only be called once per call of next.
-func (l *lexer) backup() {
-    l.pos -= l.width
+func (l *Lexer) backup() {
+	l.pos -= l.width
 }
 
-// emit passes an item back to the client.
-func (l *lexer) emit(t itemType) {
-    l.items <- item{t, l.start, l.input[l.start:l.pos]}
-    l.start = l.pos
+// emit passes an Item back to the client.
+func (l *Lexer) emit(t ItemType) {
+	l.items <- Item{t, l.start, l.input[l.start:l.pos]}
+	l.start = l.pos
 }
 
-func (l *lexer) ignore() {
-    l.start = l.pos
+func (l *Lexer) ignore() {
+	l.start = l.pos
 }
 
 // accept consumes the next rune if it's from the valid set.
-func (l *lexer) accept(valid string) bool {
-    if strings.IndexRune(valid, l.next()) >= 0 {
-        return true
-    }
-    l.backup()
-    return false
+func (l *Lexer) accept(valid string) bool {
+	if strings.IndexRune(valid, l.next()) >= 0 {
+		return true
+	}
+	l.backup()
+	return false
 }
 
 // acceptRun consumes a run of runes from the valid set.
-func (l *lexer) acceptRun(valid string) {
-    for strings.IndexRune(valid, l.next()) >= 0 {
-    }
-    l.backup()
+func (l *Lexer) acceptRun(valid string) {
+	for strings.IndexRune(valid, l.next()) >= 0 {
+	}
+	l.backup()
 }
 
-func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-    l.items <- item{itemError, l.start, fmt.Sprintf(format, args...)}
-    return nil
+func (l *Lexer) errorf(format string, args ...interface{}) stateFn {
+	l.items <- Item{ItemError, l.start, fmt.Sprintf(format, args...)}
+	return nil
 }
 
-func (l *lexer) nextItem() item {
-    item := <-l.items
-    l.lastPos = item.pos
-    return item
+func (l *Lexer) NextItem() Item {
+	Item := <-l.items
+	l.lastPos = Item.pos
+	return Item
 }
 
-func lex(name, input string) *lexer {
-    l := &lexer{
-        name:       name,
-        input:  input,
-        items: make(chan item),
-    }
-    go l.run()
-    return l
+func Lex(name, input string) *Lexer {
+	l := &Lexer{
+		name:  name,
+		input: input,
+		items: make(chan Item),
+	}
+	go l.run()
+	return l
 }
 
-func (l *lexer) run() {
-    for l.state = lexWhitespace; l.state != nil; {
-        l.state = l.state(l)
-    }
-    close(l.items)
+func (l *Lexer) run() {
+	for l.state = lexWhitespace; l.state != nil; {
+		l.state = l.state(l)
+	}
+	close(l.items)
 }
 
-func lexOpenVect(l *lexer) stateFn {
-    l.emit(_LVECT)
-    l.vectDepth++
+func lexLeftVect(l *Lexer) stateFn {
+	l.emit(ItemLeftVect)
 
-    r := l.next()
-
-    switch r {
-    case ' ', '\t', '\n', '\r':
-        return lexWhitespace
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case ';':
-        return lexComment
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-
+	return lexWhitespace
 }
 
-func lexCloseVect(l *lexer) stateFn {
-    l.emit(_RVECT)
-    l.vectDepth--
-    if l.parenDepth < 0 {
-        return l.errorf("unexpected close paren [vect]")
-    }
+func lexRightVect(l *Lexer) stateFn {
+	l.emit(ItemRightVect)
 
-    r := l.next()
-
-    switch r {
-    case ' ', '\t', '\n', '\r':
-        return lexWhitespace
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case ';':
-        return lexComment
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
+	return lexWhitespace
 }
 
 // lexes an open parenthesis
-func lexOpenParen(l *lexer) stateFn {
+func lexLeftParen(l *Lexer) stateFn {
+	l.emit(ItemLeftParen)
 
-    l.emit(_LPAREN)
-    l.parenDepth++
-
-    r := l.next()
-
-    switch r {
-    case ' ', '\t', '\n', '\r':
-        return lexWhitespace
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case ';':
-        return lexComment
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
+	return lexWhitespace
 }
 
-func lexQuote(l *lexer) stateFn {
-    l.acceptRun(" ")
-    l.ignore()
-    l.emit(_QUOTE)
+func lexWhitespace(l *Lexer) stateFn {
+    atLeastOne := false
+	for r := l.next(); isSpace(r) || r == '\n'; {
+        // just absorb the spaces
+        atLeastOne = true
+	}
 
-    r := l.next()
-
-    switch r {
-    case '"':
-        return lexString
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
+    if atLeastOne {
+        l.backup()
+        l.ignore()
     }
 
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-}
-
-func lexQuasiquote(l *lexer) stateFn {
-    l.acceptRun(" ")
-    l.ignore()
-    l.emit(_QUASIQUOTE)
-
-    r := l.next()
-
-    switch r {
-    case '"':
-        return lexString
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-}
-
-func lexUnquote(l *lexer) stateFn {
-
-    if l.peek() == '@' {
-        return lexUnquoteSplice
-    }
-
-    l.acceptRun(" ")
-    l.ignore()
-    l.emit(_UNQUOTE)
-
-    r := l.next()
-
-    switch r {
-    case '"':
-        return lexString
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-}
-
-func lexUnquoteSplice(l *lexer) stateFn {
-    r := l.next()
-    l.acceptRun(" ")
-    l.ignore()
-    l.emit(_UNQUOTESPLICE)
-
-    r = l.next()
-
-    switch r {
-    case '"':
-        return lexString
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-}
-
-func lexWhitespace(l *lexer) stateFn {
-    l.ignore()
-    r := l.next()
-
-    switch r {
-    case ' ', '\t', '\n':
-        return lexWhitespace
-    case '\'':
-        return lexQuote
-    case '`':
-        return lexQuasiquote
-    case ',':
-        return lexUnquote
-    case '"':
-        return lexString
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case ';':
-        return lexComment
-    case eof:
-        if l.parenDepth > 0 {
-            return l.errorf("unclosed paren")
-        }
-        l.emit(_EOF)
+    switch r := l.next(); {
+    case r == EOF:
         return nil
-    }
-
-    if unicode.IsDigit(r) {
-        return lexInt
-    }
-
-    return lexSymbol
-}
-
-func lexString(l *lexer) stateFn {
-    r := l.next()
-
-    switch r {
-    case '"':
-        l.emit(_STRING)
-        return lexWhitespace
-    case '\\':
-        // l.backup()
-        // l.input = append(l.input[:l.pos], l.input[l.pos+1:])
-        l.next()
+    case r == '(':
+        return lexLeftParen
+    case r == ')':
+        return lexRightParen
+    case r == '[':
+        return lexLeftVect
+    case r == ']':
+        return lexRightVect
+    case r == '"':
         return lexString
+    case r == '+' || r == '-' || ('0' <= r && r <= '9'):
+        return lexNumber
+    case r == ';':
+        return lexComment
+    case isAlphaNumeric(r):
+        return lexIdentifier
     }
 
-    return lexString
+    return lexWhitespace
 }
 
-func lexInt(l *lexer) stateFn {
-    digits := "0123456789"
-    l.acceptRun(digits)
+func lexString(l *Lexer) stateFn {
+Loop:
+	for {
+		switch l.next() {
+		case '\\':
+			if r := l.next(); r != EOF {
+				break
+			}
+			fallthrough
+		case EOF:
+			return l.errorf("unterminated quoted string")
+		case '"':
+			break Loop
+		}
+	}
 
-    r := l.peek()
-
-    switch r {
-    case ' ', '\t', '\n':
-        l.emit(_INT)
-        l.next()
-        return lexWhitespace
-    case '.':
-        l.next()
-        return lexFloat
-    case ')':
-        l.emit(_INT)
-        l.next()
-        return lexCloseParen
-    case ';':
-        l.emit(_INT)
-        l.next()
-        return lexComment
-    }
-
-    return l.errorf("unexpected rune in lexInt: %c", r)
+	l.emit(ItemString)
+	return lexWhitespace
 }
 
-// once we're in a float, the only valid values are digits, whitespace or close
-// paren.
-func lexFloat(l *lexer) stateFn {
+func lexIdentifier(l *Lexer) stateFn {
+Loop:
+	for {
+		switch r := l.next(); {
+		case isAlphaNumeric(r):
+			// absorb it!
+		default:
+			l.backup()
+			break Loop
+		}
+	}
 
-    digits := "0123456789"
-    l.acceptRun(digits)
+	l.emit(ItemIdent)
 
-    l.emit(_FLOAT)
-
-    r := l.next()
-
-    switch r {
-    case ' ', '\t', '\n':
-        return lexWhitespace
-    case ')':
-        return lexCloseParen
-    case ';':
-        return lexComment
-    }
-
-    return l.errorf("unexpected run in lexFloat: %c", r)
-}
-
-func lexSymbol(l *lexer) stateFn {
-
-    r := l.peek()
-
-    switch r {
-    case ' ', '\t', '\n':
-        l.emit(_SYMBOL)
-        l.next()
-        return lexWhitespace
-    case ')':
-        l.emit(_SYMBOL)
-        l.next()
-        return lexCloseParen
-    case ';':
-        l.emit(_SYMBOL)
-        l.next()
-        return lexComment
-    default:
-        l.next()
-        return lexSymbol
-    }
+	return lexWhitespace
 }
 
 // lex a close parenthesis
-func lexCloseParen(l *lexer) stateFn {
-    l.emit(_RPAREN)
-    l.parenDepth--
-    if l.parenDepth < 0 {
-        return l.errorf("unexpected close paren")
-    }
+func lexRightParen(l *Lexer) stateFn {
+	l.emit(ItemRightParen)
 
-    r := l.next()
-    switch r {
-    case ' ', '\t', '\n':
-        return lexWhitespace
-    case '(':
-        return lexOpenParen
-    case ')':
-        return lexCloseParen
-    case '[':
-        return lexOpenVect
-    case ']':
-        return lexCloseVect
-    case ';':
-        return lexComment
-    }
-    return l.errorf("unimplemented")
+	return lexWhitespace
 }
 
-// lexes a comment
-func lexComment(l *lexer) stateFn {
+// lex a comment, comment delimiter is known to be already read
+func lexComment(l *Lexer) stateFn {
+	i := strings.Index(l.input[l.pos:], "\n")
+	l.pos += Pos(i)
+	l.ignore()
+	return lexWhitespace
+}
 
-    r := l.next()
+func lexNumber(l *Lexer) stateFn {
+	if !l.scanNumber() {
+		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+	}
 
-    switch r {
-    case '\n', '\r':
-        return lexWhitespace
-    }
-    return lexComment
+	if dot := l.peek(); dot == '.' { // it's a float
+		if !l.scanNumber() {
+			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+		}
+		l.emit(ItemFloat)
+	} else if sign := l.peek(); sign == '+' || sign == '-' {
+		// Complex: 1+2i. No spaces, must end in 'i'.
+		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
+			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
+		}
+		l.emit(ItemComplex)
+	} else {
+		l.emit(ItemInt)
+	}
+
+	return lexWhitespace
+}
+
+func (l *Lexer) scanNumber() bool {
+	// Optional leading sign.
+	l.accept("+-")
+	// Is it hex?
+	digits := "0123456789"
+	if l.accept("0") && l.accept("xX") {
+		digits = "0123456789abcdefABCDEF"
+	}
+	l.acceptRun(digits)
+
+	if l.accept("eE") {
+		l.accept("+-")
+		l.acceptRun("0123456789")
+	}
+	// Is it imaginary?
+	l.accept("i")
+	// Next thing mustn't be alphanumeric.
+	if isAlphaNumeric(l.peek()) {
+		l.next()
+		return false
+	}
+	return true
+}
+
+// isSpace reports whether r is a space character.
+func isSpace(r rune) bool {
+	return r == ' ' || r == '\t'
+}
+
+// isEndOfLine reports whether r is an end-of-line character.
+func isEndOfLine(r rune) bool {
+	return r == '\r' || r == '\n'
+}
+
+// isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
+func isAlphaNumeric(r rune) bool {
+	return r == '-' || r == '.' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
