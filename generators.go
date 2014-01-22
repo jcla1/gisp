@@ -113,17 +113,9 @@ func makeFunCall(name ast.Expr, args []Any) ast.Expr {
 }
 
 func makeFuncLit(args, body []Any) *ast.FuncLit {
-	return &ast.FuncLit{
+	node := &ast.FuncLit{
 		Type: &ast.FuncType{
-			Params: &ast.FieldList{
 
-				List: []*ast.Field{
-					&ast.Field{
-						Type:  makeIdent("Any"),
-						Names: makeIdentSlice(args),
-					},
-				},
-			},
 			Results: &ast.FieldList{
 				List: []*ast.Field{
 					&ast.Field{
@@ -134,6 +126,23 @@ func makeFuncLit(args, body []Any) *ast.FuncLit {
 		},
 		Body: &ast.BlockStmt{
 			List: returnLast(wrapExprsWithStmt(evalExprs(body))),
+		},
+	}
+
+	if len(args) > 0 {
+		node.Type.Params = makeParameterList(args)
+	}
+
+	return node
+}
+
+func makeParameterList(args []Any) *ast.FieldList {
+	return &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  makeIdent("Any"),
+				Names: makeIdentSlice(args),
+			},
 		},
 	}
 }
@@ -163,15 +172,15 @@ func makeIdent(name string) *ast.Ident {
 	return ast.NewIdent(name)
 }
 
-func makeVector(typ string, elements []Any) ast.CompositeLit {
-    return makeCompositeLit(&ast.ArrayType{Elt: makeIdent(typ)}, evalExprs(elements))
+func makeVector(typ string, elements []Any) *ast.CompositeLit {
+	return makeCompositeLit(&ast.ArrayType{Elt: makeIdent(typ)}, evalExprs(elements))
 }
 
 func makeCompositeLit(typ ast.Expr, elements []ast.Expr) *ast.CompositeLit {
-    return &ast.CompositeLit{
-        Type: typ,
-        Elts: elements,
-    }
+	return &ast.CompositeLit{
+		Type: typ,
+		Elts: elements,
+	}
 }
 
 func makeBasicLit(kind goToken.Token, value string) *ast.BasicLit {

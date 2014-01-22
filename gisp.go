@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"go/ast"
+	// "go/ast"
 	"go/printer"
 	goToken "go/token"
 	"io/ioutil"
@@ -18,93 +18,56 @@ type Any interface{}
 type Symbol string
 type tokenType int
 
+type Pos int
+
+type item struct {
+	typ itemType
+	pos Pos
+	val string
+}
+
+type itemType int
+
 const (
-	_INVALID tokenType = iota
-	_EOF
-	_INT
-	_SYMBOL
-	_LPAREN
-	_RPAREN
-	_LVECT
-	_RVECT
-	_STRING
-	_FLOAT
-	_QUOTE
-	_QUASIQUOTE
-	_UNQUOTE
-	_UNQUOTESPLICE
+	itemError itemType = iota
+	itemEOF
+
+	itemLeftParen
+	itemRightParen
+	itemLeftVect
+	itemRightVect
+
+	itemIdent
+	itemString
+	itemChar
+	itemFloat
+	itemInt
+
+	itemQuote
+	itemQuasiQuote
+	itemUnquote
+	itemUnquoteSplice
 )
-
-func (t tokenType) String() string {
-	switch t {
-	case _INVALID:
-		return "INVALID TOKEN"
-	case _EOF:
-		return "EOF"
-	case _INT:
-		return "INT"
-	case _SYMBOL:
-		return "SYMBOL"
-	case _LPAREN:
-		return "LEFT_PAREN"
-	case _RPAREN:
-		return "RIGHT_PAREN"
-	case _STRING:
-		return "STRING"
-	case _FLOAT:
-		return "FLOAT"
-	case _QUOTE:
-		return "'"
-	case _QUASIQUOTE:
-		return "`"
-	case _UNQUOTE:
-		return ","
-	case _UNQUOTESPLICE:
-		return ",@"
-	default:
-		return "WTF!?"
-	}
-}
-
-type token struct {
-	typ tokenType // The type of this item.
-	pos Pos       // The starting position, in bytes, of this item in the input string.
-	val string    // The value of this item.
-}
-
-func (t token) String() string {
-	return fmt.Sprintf("%s", t.val)
-}
-
-type astToken struct {
-	Type  string
-	Value string
-}
 
 const eof = -1
 
 type stateFn func(*lexer) stateFn
-type Pos int
 
 type lexer struct {
-	name       string
-	input      string
-	state      stateFn
-	pos        Pos
-	start      Pos
-	width      Pos
-	lastPos    Pos
-	tokens     chan token
+	name    string
+	input   string
+	state   stateFn
+	pos     Pos
+	start   Pos
+	width   Pos
+	lastPos Pos
+	items   chan item
+
 	parenDepth int
 	vectDepth  int
 }
 
-func (l *lexer) run() {
-	for l.state = lexWhitespace; l.state != nil; {
-		l.state = l.state(l)
-	}
-}
-
+// next returns the next rune in the input.
 func (l *lexer) next() rune {
 	if int(l.pos) >= len(l.input) {
 		l.width = 0
@@ -128,8 +91,9 @@ func (l *lexer) backup() {
 	l.pos -= l.width
 }
 
-func (l *lexer) emit(t tokenType) {
-	l.tokens <- token{t, l.start, l.input[l.start:l.pos]}
+// emit passes an item back to the client.
+func (l *lexer) emit(t itemType) {
+	l.tokens <- item{t, l.start, l.input[l.start:l.pos]}
 	l.start = l.pos
 }
 
@@ -153,19 +117,32 @@ func (l *lexer) acceptRun(valid string) {
 	l.backup()
 }
 
-func (l *lexer) lineNumber() int {
-	return 1 + strings.Count(l.input[:l.lastPos], "\n")
-}
-
 func (l *lexer) errorf(format string, args ...interface{}) stateFn {
-	l.tokens <- token{_INVALID, l.start, fmt.Sprintf(format, args...)}
+	l.tokens <- item{itemError, l.start, fmt.Sprintf(format, args...)}
 	return nil
 }
 
-func (l *lexer) nextToken() token {
-	token := <-l.tokens
-	l.lastPos = token.pos
-	return token
+func (l *lexer) nextItem() token {
+	item := <-l.items
+	l.lastPos = item.pos
+	return item
+}
+
+func lex(name, input string) *lexer {
+	l := &lexer{
+		name:       name,
+		input:  input,
+		items: make(chan item),
+	}
+	go l.run()
+	return l
+}
+
+func (l *lexer) run() {
+	for l.state = lexWhitespace; l.state != nil; {
+		l.state = l.state(l)
+	}
+	close(l.items)
 }
 
 func lexOpenVect(l *lexer) stateFn {
@@ -471,9 +448,6 @@ func lexString(l *lexer) stateFn {
 	return lexString
 }
 
-// lex an integer.  Once we're on an integer, the only valid characters are
-// whitespace, close paren, a period to indicate we want a float, or more
-// digits.  Everything else is crap.
 func lexInt(l *lexer) stateFn {
 	digits := "0123456789"
 	l.acceptRun(digits)
@@ -585,28 +559,6 @@ func lexComment(l *lexer) stateFn {
 	return lexComment
 }
 
-func lex(input string) *lexer {
-	l := &lexer{
-		// name:       name,
-		input:  input,
-		tokens: make(chan token),
-	}
-	go l.run()
-	return l
-}
-
-type Pair struct {
-	car, cdr interface{}
-}
-
-func (p *Pair) String() string {
-	return fmt.Sprintf("(%v %v)", p.car, p.cdr)
-}
-
-func Cons(car, cdr interface{}) *Pair {
-	return &Pair{car, cdr}
-}
-
 func parse(l *lexer, p []Any) []Any {
 
 	for {
@@ -661,12 +613,12 @@ func args(filename string) {
 	}
 	l := lex(string(b) + "\n")
 	p := parse(l, []Any{})
-	fmt.Printf("%#v\n\n\n", p)
+	// fmt.Printf("%#v\n\n\n", p)
 
 	a := generateAST(p)
 
 	fset := goToken.NewFileSet()
-	ast.Print(fset, a)
+	// ast.Print(fset, a)
 
 	var buf bytes.Buffer
 	printer.Fprint(&buf, fset, a)
