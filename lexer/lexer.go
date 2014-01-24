@@ -10,7 +10,7 @@ import (
 type Pos int
 
 type Item struct {
-	Typ   ItemType
+	Type  ItemType
 	Pos   Pos
 	Value string
 }
@@ -155,19 +155,15 @@ func lexLeftParen(l *Lexer) stateFn {
 }
 
 func lexWhitespace(l *Lexer) stateFn {
-	atLeastOne := false
-	for r := l.next(); isSpace(r) || r == '\n'; {
-		// just absorb the spaces
-		atLeastOne = true
+	for r := l.next(); isSpace(r) || r == '\n'; l.next() {
+		r = l.peek()
 	}
-
-	if atLeastOne {
-		l.backup()
-		l.ignore()
-	}
+	l.backup()
+	l.ignore()
 
 	switch r := l.next(); {
 	case r == EOF:
+		l.emit(ItemEOF)
 		return nil
 	case r == '(':
 		return lexLeftParen
@@ -185,9 +181,9 @@ func lexWhitespace(l *Lexer) stateFn {
 		return lexComment
 	case isAlphaNumeric(r):
 		return lexIdentifier
+	default:
+		panic(fmt.Sprintf("don't know what to do with: %q", r))
 	}
-
-	return lexWhitespace
 }
 
 func lexString(l *Lexer) stateFn {
@@ -247,17 +243,14 @@ func lexNumber(l *Lexer) stateFn {
 		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
 
-	if dot := l.peek(); dot == '.' { // it's a float
-		if !l.scanNumber() {
-			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
-		}
-		l.emit(ItemFloat)
-	} else if sign := l.peek(); sign == '+' || sign == '-' {
+	if sign := l.peek(); sign == '+' || sign == '-' {
 		// Complex: 1+2i. No spaces, must end in 'i'.
 		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
 			return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 		}
 		l.emit(ItemComplex)
+	} else if strings.ContainsRune(l.input[l.start:l.pos], '.') {
+		l.emit(ItemFloat)
 	} else {
 		l.emit(ItemInt)
 	}
@@ -274,7 +267,9 @@ func (l *Lexer) scanNumber() bool {
 		digits = "0123456789abcdefABCDEF"
 	}
 	l.acceptRun(digits)
-
+	if l.accept(".") {
+		l.acceptRun(digits)
+	}
 	if l.accept("eE") {
 		l.accept("+-")
 		l.acceptRun("0123456789")
@@ -282,7 +277,7 @@ func (l *Lexer) scanNumber() bool {
 	// Is it imaginary?
 	l.accept("i")
 	// Next thing mustn't be alphanumeric.
-	if isAlphaNumeric(l.peek()) {
+	if r := l.peek(); isAlphaNumeric(r) {
 		l.next()
 		return false
 	}
@@ -302,4 +297,8 @@ func isEndOfLine(r rune) bool {
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
 	return r == '-' || r == '.' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
+}
+
+func debug(msg string) {
+	fmt.Println(msg)
 }
