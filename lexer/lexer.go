@@ -296,7 +296,7 @@ func isEndOfLine(r rune) bool {
 
 // isAlphaNumeric reports whether r is an alphabetic, digit, or underscore.
 func isAlphaNumeric(r rune) bool {
-	return r == '-' || r == '.' || r == ':' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '-' || r == ':' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func debug(msg string) {

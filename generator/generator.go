@@ -2,8 +2,12 @@ package generator
 
 import (
 	"../parser"
+	"bytes"
+	"fmt"
 	"go/ast"
 	"go/token"
+	"regexp"
+	"strings"
 )
 
 func GenerateAST(tree []parser.Node) *ast.File {
@@ -25,8 +29,61 @@ func GenerateAST(tree []parser.Node) *ast.File {
 		tree = tree[1:]
 	}
 
+	decls = append(decls, generateDecls(tree)...)
+
 	f.Decls = decls
 	return f
+}
+
+func generateDecls(tree []parser.Node) []ast.Decl {
+	decls := make([]ast.Decl, len(tree))
+
+	for i, node := range tree {
+		if node.Type() != parser.NodeCall {
+			panic("expected call node in root scope!")
+		}
+
+		decls[i] = evalDeclNode(node.(*parser.CallNode))
+	}
+
+	return decls
+}
+
+func evalDeclNode(node *parser.CallNode) ast.Decl {
+	// Let's just assume that all top-level functions called will be "def"
+	if node.Callee.Type() != parser.NodeIdent {
+		panic("expecting call to identifier (i.e. def, defconst, etc.)")
+	}
+
+	callee := node.Callee.(*parser.IdentNode)
+	switch callee.Ident {
+	case "def":
+		return evalDef(node)
+	}
+
+	return nil
+}
+
+func evalDef(node *parser.CallNode) ast.Decl {
+	if len(node.Args) < 2 {
+		panic(fmt.Sprintf("expecting expression to be assigned to variable: %q", node.Args[0]))
+	}
+
+	val := EvalExpr(node.Args[1])
+	fn, ok := val.(*ast.FuncLit)
+
+	ident := makeIdent(goify(node.Args[0].(*parser.IdentNode).Ident, true))
+
+	if ok {
+		if ident.Name != "Main" {
+			return makeFuncDeclFromFuncLit(ident, fn)
+		} else {
+			ident.Name = "main"
+			return mainable(makeFuncDeclFromFuncLit(ident, fn))
+		}
+	} else {
+		return makeGeneralDecl(token.VAR, []ast.Spec{makeValueSpec(ident, val)})
+	}
 }
 
 func isNSDecl(node parser.Node) bool {
@@ -108,7 +165,19 @@ func EvalExpr(node parser.Node) ast.Expr {
 		return makeBasicLit(token.STRING, node.Value)
 	case parser.NodeIdent:
 		node := node.(*parser.IdentNode)
-		return makeIdent(node.Ident)
+
+		if strings.Contains(node.Ident, "/") {
+			parts := strings.Split(node.Ident, "/")
+			outerSelector := makeSelectorExpr(makeIdent(parts[0]), makeIdent(goify(parts[1], true)))
+
+			for i := 2; i < len(parts); i++ {
+				outerSelector = makeSelectorExpr(outerSelector, makeIdent(goify(parts[i], true)))
+			}
+
+			return outerSelector
+		}
+
+		return makeIdent(goify(node.Ident, false))
 	default:
 		println(t)
 		panic("not implemented yet!")
@@ -136,6 +205,10 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	}
 
 	callee := EvalExpr(node.Callee)
+	if c, ok := callee.(*ast.Ident); ok {
+		c.Name = goify(c.Name, true)
+	}
+
 	args := EvalExprs(node.Args)
 
 	return makeFunCall(callee, args)
@@ -274,9 +347,13 @@ func makeAssignStmt(name, val ast.Expr) *ast.AssignStmt {
 func wrapExprsWithStmt(exps []ast.Expr) []ast.Stmt {
 	out := make([]ast.Stmt, len(exps))
 	for i, v := range exps {
-		out[i] = &ast.ExprStmt{X: v}
+		out[i] = makeExprStmt(v)
 	}
 	return out
+}
+
+func makeExprStmt(exp ast.Expr) ast.Stmt {
+	return &ast.ExprStmt{X: exp}
 }
 
 func makeFunCall(callee ast.Expr, args []ast.Expr) ast.Expr {
@@ -397,4 +474,49 @@ func makeImportSpecFromVector(vect *parser.VectorNode) *ast.ImportSpec {
 	name := makeIdent(vect.Nodes[2].(*parser.IdentNode).Ident)
 
 	return makeImportSpec(path, name)
+}
+
+func mainable(fn *ast.FuncDecl) *ast.FuncDecl {
+	fn.Type.Results = nil
+
+	returnStmt := fn.Body.List[len(fn.Body.List)-1].(*ast.ReturnStmt)
+	fn.Body.List[len(fn.Body.List)-1] = makeExprStmt(returnStmt.Results[0])
+
+	return fn
+}
+
+func makeFuncDeclFromFuncLit(name *ast.Ident, f *ast.FuncLit) *ast.FuncDecl {
+	return &ast.FuncDecl{
+		Name: name,
+		Type: f.Type,
+		Body: f.Body,
+	}
+}
+
+func makeValueSpec(name *ast.Ident, value ast.Expr) *ast.ValueSpec {
+	return &ast.ValueSpec{
+		Names:  []*ast.Ident{name},
+		Values: []ast.Expr{value},
+	}
+}
+
+func makeSelectorExpr(x ast.Expr, sel *ast.Ident) *ast.SelectorExpr {
+	return &ast.SelectorExpr{
+		X: x,
+		Sel: sel,
+	}
+}
+
+var camelingRegex = regexp.MustCompile("[0-9A-Za-z]+")
+
+func goify(src string, capitalizeFirst bool) string {
+	src = strings.Replace(src, "/", ".", -1)
+	byteSrc := []byte(src)
+	chunks := camelingRegex.FindAll(byteSrc, -1)
+	for idx, val := range chunks {
+		if idx > 0 || capitalizeFirst {
+			chunks[idx] = bytes.Title(val)
+		}
+	}
+	return string(bytes.Join(chunks, nil))
 }

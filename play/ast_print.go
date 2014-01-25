@@ -13,12 +13,10 @@ func main() {
 	// src is the input for which we want to print the AST.
 	src := `
 package main
-import (
-	neuralNetwork "github.com/jcla1/nn"
-	"github.com/jcla1/matrix"
-	"go/ast"
-	"strings"
-)
+
+func main() {
+fmt.Println(myNode.Node.Type.Hello)
+}
 `
 
 	// Create the AST by parsing src.

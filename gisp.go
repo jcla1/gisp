@@ -9,33 +9,32 @@ import (
 	"go/ast"
 	"go/printer"
 	"go/token"
-	// "io/ioutil"
+	"io/ioutil"
 	"os"
 )
 
-// func args(filename string) {
-// 	b, err := ioutil.ReadFile(filename)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+func args(filename string) {
+	b, err := ioutil.ReadFile(filename)
+	if err != nil {
+		panic(err)
+	}
 
-// 	p := parser.ParseFromString(filename, string(b)+"\n")
+	p := parser.ParseFromString(filename, string(b)+"\n")
 
-// 	a := generateAST(p)
+	a := generator.GenerateAST(p)
 
-// 	fset := token.NewFileSet()
-// 	ast.Print(fset, a)
+	fset := token.NewFileSet()
 
-// 	var buf bytes.Buffer
-// 	printer.Fprint(&buf, fset, a)
-// 	fmt.Printf("%s\n", buf.String())
-// }
+	var buf bytes.Buffer
+	printer.Fprint(&buf, fset, a)
+	fmt.Printf("%s\n", buf.String())
+}
 
 func main() {
-	// if len(os.Args) > 1 {
-	// 	args(os.Args[1])
-	// 	return
-	// }
+	if len(os.Args) > 1 {
+		args(os.Args[1])
+		return
+	}
 
 	r := bufio.NewReader(os.Stdin)
 

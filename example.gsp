@@ -1,4 +1,9 @@
-(def square (fn (x)
-    (println "Hello, World!")
-    (println (== x 2))
-    ((fn (y) (id y)) x)))
+(ns main
+    "fmt")
+
+(def main (fn []
+    (fmt/println (my-func 10))
+    ))
+
+(def my-func (fn [n]
+    n))
