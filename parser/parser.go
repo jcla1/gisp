@@ -4,7 +4,6 @@ import (
 	"../lexer"
 	"fmt"
 	"go/token"
-	"strings"
 )
 
 type Node interface {
@@ -30,7 +29,7 @@ const (
 	NodeString
 	NodeNumber
 	NodeCall
-    NodeVector
+	NodeVector
 )
 
 type IdentNode struct {
@@ -86,8 +85,8 @@ type CallNode struct {
 }
 
 func (node *CallNode) String() string {
-	// clean this up, so that you've no need to import "strings"
-	return fmt.Sprintf("(%s %s)", node.Callee, strings.Trim(fmt.Sprint(node.Args), "[]"))
+	args := fmt.Sprint(node.Args)
+	return fmt.Sprintf("(%s %s)", node.Callee, args[1:len(args)-1])
 }
 
 var nilNode = newIdentNode("nil")
@@ -115,18 +114,18 @@ func parser(l *lexer.Lexer, tree []Node, lookingFor rune) []Node {
 			tree = append(tree, newComplexNode(item.Value))
 		case lexer.ItemLeftParen:
 			tree = append(tree, newCallNode(parser(l, make([]Node, 0), ')')))
-        case lexer.ItemLeftVect:
-            tree = append(tree, newVectNode(parser(l, make([]Node, 0), ']')))
+		case lexer.ItemLeftVect:
+			tree = append(tree, newVectNode(parser(l, make([]Node, 0), ']')))
 		case lexer.ItemRightParen:
-            if lookingFor != ')' {
-                panic(fmt.Sprintf("unexpected \")\" [%d]", item.Pos))
-            }
+			if lookingFor != ')' {
+				panic(fmt.Sprintf("unexpected \")\" [%d]", item.Pos))
+			}
 			return tree
-        case lexer.ItemRightVect:
-            if lookingFor != ']' {
-                panic(fmt.Sprintf("unexpected \"]\" [%d]", item.Pos))
-            }
-            return tree
+		case lexer.ItemRightVect:
+			if lookingFor != ']' {
+				panic(fmt.Sprintf("unexpected \"]\" [%d]", item.Pos))
+			}
+			return tree
 		case lexer.ItemError:
 			println(item.Value)
 		default:
@@ -168,5 +167,5 @@ func newCallNode(args []Node) Node {
 }
 
 func newVectNode(content []Node) *VectorNode {
-    return &VectorNode{NodeType: NodeVector, Nodes: content}
+	return &VectorNode{NodeType: NodeVector, Nodes: content}
 }
