@@ -63,6 +63,9 @@ func EvalExpr(node parser.Node) ast.Expr {
 	case parser.NodeCall:
 		node := node.(*parser.CallNode)
 		return evalFuncCall(node)
+	case parser.NodeVector:
+		node := node.(*parser.VectorNode)
+		return makeVector(makeIdent("Any"), EvalExprs(node.Nodes))
 	case parser.NodeNumber:
 		node := node.(*parser.NumberNode)
 		return makeBasicLit(node.NumberType, node.Value)
@@ -169,16 +172,16 @@ func makeIdent(name string) *ast.Ident {
 	return ast.NewIdent(name)
 }
 
-// func makeVector(typ string, elements []Any) *ast.CompositeLit {
-// 	return makeCompositeLit(&ast.ArrayType{Elt: makeIdent(typ)}, evalExprs(elements))
-// }
+func makeVector(typ *ast.Ident, elements []ast.Expr) *ast.CompositeLit {
+	return makeCompositeLit(&ast.ArrayType{Elt: typ}, elements)
+}
 
-// func makeCompositeLit(typ ast.Expr, elements []ast.Expr) *ast.CompositeLit {
-// 	return &ast.CompositeLit{
-// 		Type: typ,
-// 		Elts: elements,
-// 	}
-// }
+func makeCompositeLit(typ ast.Expr, elements []ast.Expr) *ast.CompositeLit {
+	return &ast.CompositeLit{
+		Type: typ,
+		Elts: elements,
+	}
+}
 
 func makeBasicLit(kind token.Token, value string) *ast.BasicLit {
 	return &ast.BasicLit{Kind: kind, Value: value}
