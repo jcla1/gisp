@@ -75,8 +75,6 @@ func EvalExpr(node parser.Node) ast.Expr {
 	case parser.NodeIdent:
 		node := node.(*parser.IdentNode)
 		return makeIdent(node.Ident)
-	case parser.NodeNil:
-		return makeNil()
 	default:
 		println(t)
 		panic("not implemented yet!")

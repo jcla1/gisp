@@ -31,7 +31,6 @@ const (
 	NodeNumber
 	NodeCall
     NodeVector
-    NodeNil
 )
 
 type IdentNode struct {
