@@ -17,6 +17,14 @@ var x = []int{1,2,3}
 var y = []Any{1,2,3}
 var z = []int{}
 var abcdef = nil
+var square = func(a, b Any) Any {
+	println("hello")
+	{
+		x := 10
+		y := 20
+		println(x + y)
+	}
+}
 `
 
 	// Create the AST by parsing src.

@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./parser"
 	"./generator"
+	"./parser"
 	"bufio"
 	"bytes"
 	"fmt"

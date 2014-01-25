@@ -1,9 +1,9 @@
 package generator
 
 import (
+	"../parser"
 	"go/ast"
 	"go/token"
-	"../parser"
 )
 
 // func generateAST(tree []parser.Node) *ast.File {
@@ -62,7 +62,7 @@ func EvalExpr(node parser.Node) ast.Expr {
 	switch t := node.Type(); t {
 	case parser.NodeCall:
 		node := node.(*parser.CallNode)
-		return evalFuncCall(node)
+		return evalFunCall(node)
 	case parser.NodeVector:
 		node := node.(*parser.VectorNode)
 		return makeVector(makeIdent("Any"), EvalExprs(node.Nodes))
@@ -81,27 +81,97 @@ func EvalExpr(node parser.Node) ast.Expr {
 	}
 }
 
-func evalFuncCall(node *parser.CallNode) ast.Expr {
+func evalFunCall(node *parser.CallNode) ast.Expr {
+	switch {
+	case checkLetArgs(node):
+		return makeLetFun(node)
+	}
+
 	callee := EvalExpr(node.Callee)
 	args := EvalExprs(node.Args)
 
 	return makeFunCall(callee, args)
 }
 
-// func makeLitFunCall(body []Any) ast.Expr {
-// 	return &ast.CallExpr{
-// 		Fun:  makeFuncLit([]Any{}, body),
-// 		Args: []ast.Expr{},
-// 	}
-// }
+func checkLetArgs(node *parser.CallNode) bool {
+	// Need an identifier for it to be "let"
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
 
-// func wrapExprsWithStmt(exps []ast.Expr) []ast.Stmt {
-// 	out := make([]ast.Stmt, len(exps))
-// 	for i, v := range exps {
-// 		out[i] = &ast.ExprStmt{X: v}
-// 	}
-// 	return out
-// }
+	// Not a "let"
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "let" {
+		return false
+	}
+
+	// Need _at least_ the bindings & one expression
+	if len(node.Args) < 2 {
+		return false
+	}
+
+	// Bindings should be a vector
+	bindings := node.Args[0]
+	if bindings.Type() != parser.NodeVector {
+		return false
+	}
+
+	// There should be an even number of elements in the bindings
+	b := bindings.(*parser.VectorNode)
+	if len(b.Nodes)%2 != 0 {
+		return false
+	}
+
+	// The bound identifiers, should be identifiers
+	for i := 0; i < len(b.Nodes); i += 2 {
+		if b.Nodes[i].Type() != parser.NodeIdent {
+			return false
+		}
+	}
+
+	return true
+}
+
+func makeLetFun(node *parser.CallNode) ast.Expr {
+	bindings := makeBindings(node.Args[0].(*parser.VectorNode))
+	// TODO: clean this!
+	return makeFunCall(makeFunLit([]*ast.Ident{}, append(bindings, wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)), []ast.Expr{})
+}
+
+func makeBindings(bindings *parser.VectorNode) []ast.Stmt {
+	vars := make([]*ast.Ident, len(bindings.Nodes)/2)
+	for i := 0; i < len(bindings.Nodes); i += 2 {
+		vars[i/2] = makeIdent(bindings.Nodes[i].(*parser.IdentNode).Ident)
+	}
+
+	vals := make([]ast.Expr, len(bindings.Nodes)/2)
+	for i := 1; i < len(bindings.Nodes); i += 2 {
+		vals[(i-1)/2] = EvalExpr(bindings.Nodes[i])
+	}
+
+	stmts := make([]ast.Stmt, len(vars))
+	for i := 0; i < len(vars); i++ {
+		stmts[i] = makeAssignStmt(vars[i], vals[i])
+	}
+
+	return stmts
+}
+
+func makeAssignStmt(name, val ast.Expr) *ast.AssignStmt {
+	return &ast.AssignStmt{
+		Lhs: []ast.Expr{name},
+		Rhs: []ast.Expr{val},
+		// TODO: check if following line can be omitted
+		Tok: token.DEFINE,
+	}
+}
+
+func wrapExprsWithStmt(exps []ast.Expr) []ast.Stmt {
+	out := make([]ast.Stmt, len(exps))
+	for i, v := range exps {
+		out[i] = &ast.ExprStmt{X: v}
+	}
+	return out
+}
 
 func makeFunCall(callee ast.Expr, args []ast.Expr) ast.Expr {
 	return &ast.CallExpr{
@@ -110,61 +180,60 @@ func makeFunCall(callee ast.Expr, args []ast.Expr) ast.Expr {
 	}
 }
 
-// func makeFuncLit(args, body []Any) *ast.FuncLit {
-// 	node := &ast.FuncLit{
-// 		Type: &ast.FuncType{
+func makeFunLit(args []*ast.Ident, body []ast.Stmt) *ast.FuncLit {
+	node := &ast.FuncLit{
+		Type: &ast.FuncType{
+			Results: &ast.FieldList{
+				List: []*ast.Field{
+					&ast.Field{
+						Type: makeIdent("Any"),
+					},
+				},
+			},
+		},
+		Body: &ast.BlockStmt{
+			List: returnLast(body),
+		},
+	}
 
-// 			Results: &ast.FieldList{
-// 				List: []*ast.Field{
-// 					&ast.Field{
-// 						Type: makeIdent("Any"),
-// 					},
-// 				},
-// 			},
-// 		},
-// 		Body: &ast.BlockStmt{
-// 			List: returnLast(wrapExprsWithStmt(evalExprs(body))),
-// 		},
-// 	}
+	if len(args) > 0 {
+		node.Type.Params = makeParameterList(args)
+	}
 
-// 	if len(args) > 0 {
-// 		node.Type.Params = makeParameterList(args)
-// 	}
+	return node
+}
 
-// 	return node
-// }
+func makeParameterList(args []*ast.Ident) *ast.FieldList {
+	return &ast.FieldList{
+		List: []*ast.Field{
+			&ast.Field{
+				Type:  makeIdent("Any"),
+				Names: args,
+			},
+		},
+	}
+}
 
-// func makeParameterList(args []Any) *ast.FieldList {
-// 	return &ast.FieldList{
-// 		List: []*ast.Field{
-// 			&ast.Field{
-// 				Type:  makeIdent("Any"),
-// 				Names: makeIdentSlice(args),
-// 			},
-// 		},
-// 	}
-// }
+func returnLast(stmts []ast.Stmt) []ast.Stmt {
+	if len(stmts) < 1 {
+		return stmts
+	}
 
-// func returnLast(stmts []ast.Stmt) []ast.Stmt {
-// 	if len(stmts) < 1 {
-// 		return stmts
-// 	}
+	stmts[len(stmts)-1] = &ast.ReturnStmt{
+		Results: []ast.Expr{
+			stmts[len(stmts)-1].(*ast.ExprStmt).X,
+		},
+	}
+	return stmts
+}
 
-// 	stmts[len(stmts)-1] = &ast.ReturnStmt{
-// 		Results: []ast.Expr{
-// 			stmts[len(stmts)-1].(*ast.ExprStmt).X,
-// 		},
-// 	}
-// 	return stmts
-// }
-
-// func makeIdentSlice(args []Any) []*ast.Ident {
-// 	out := make([]*ast.Ident, len(args))
-// 	for i, v := range args {
-// 		out[i] = makeIdent(v.(astToken).Value)
-// 	}
-// 	return out
-// }
+func makeIdentSlice(nodes []*parser.IdentNode) []*ast.Ident {
+	out := make([]*ast.Ident, len(nodes))
+	for i, node := range nodes {
+		out[i] = makeIdent(node.Ident)
+	}
+	return out
+}
 
 func makeIdent(name string) *ast.Ident {
 	return ast.NewIdent(name)
@@ -185,7 +254,6 @@ func makeBasicLit(kind token.Token, value string) *ast.BasicLit {
 	return &ast.BasicLit{Kind: kind, Value: value}
 }
 
-
-func makeNil() *ast.Ident {
-	return makeIdent("nil")
+func makeBlockStmt(statements []ast.Stmt) *ast.BlockStmt {
+	return &ast.BlockStmt{List: statements}
 }
