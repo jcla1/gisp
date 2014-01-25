@@ -6,9 +6,6 @@ import (
 	"../parser"
 )
 
-type Any interface{}
-type Symbol string
-
 // func generateAST(tree []parser.Node) *ast.File {
 // 	return &ast.File{Name: makeIdent("main"), Decls: generateDeclarations(tree)}
 // }
