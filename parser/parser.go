@@ -31,6 +31,7 @@ const (
 	NodeNumber
 	NodeCall
     NodeVector
+    NodeNil
 )
 
 type IdentNode struct {
@@ -40,6 +41,10 @@ type IdentNode struct {
 }
 
 func (node *IdentNode) String() string {
+	if node.Ident == "nil" {
+		return "()"
+	}
+
 	return node.Ident
 }
 
@@ -85,6 +90,8 @@ func (node *CallNode) String() string {
 	// clean this up, so that you've no need to import "strings"
 	return fmt.Sprintf("(%s %s)", node.Callee, strings.Trim(fmt.Sprint(node.Args), "[]"))
 }
+
+var nilNode = newIdentNode("nil")
 
 func ParseFromString(name, program string) []Node {
 	return Parse(lexer.Lex(name, program))
@@ -152,11 +159,12 @@ func newComplexNode(val string) *NumberNode {
 	return &NumberNode{NodeType: NodeNumber, Value: val, NumberType: token.IMAG}
 }
 
-func newCallNode(args []Node) *CallNode {
+// We return Node here, because it could be that it's nil
+func newCallNode(args []Node) Node {
 	if len(args) > 0 {
 		return &CallNode{NodeType: NodeCall, Callee: args[0], Args: args[1:]}
 	} else {
-		return nil
+		return nilNode
 	}
 }
 

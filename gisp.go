@@ -2,18 +2,16 @@ package main
 
 import (
 	"./parser"
+	"./generator"
 	"bufio"
-	// "bytes"
+	"bytes"
 	"fmt"
-	// "go/ast"
-	// "go/printer"
-	// "go/token"
+	"go/ast"
+	"go/printer"
+	"go/token"
 	// "io/ioutil"
 	"os"
 )
-
-type Any interface{}
-type Symbol string
 
 // func args(filename string) {
 // 	b, err := ioutil.ReadFile(filename)
@@ -47,10 +45,12 @@ func main() {
 		p := parser.ParseFromString("<REPL>", string(line)+"\n")
 		fmt.Println(p)
 
-		// a := generateAST(p)
-		// fset := goToken.NewFileSet()
-		// var buf bytes.Buffer
-		// printer.Fprint(&buf, fset, a)
-		// fmt.Printf("%s\n", buf.String())
+		a := generator.EvalExprs(p)
+		fset := token.NewFileSet()
+		ast.Print(fset, a)
+
+		var buf bytes.Buffer
+		printer.Fprint(&buf, fset, a)
+		fmt.Printf("%s\n", buf.String())
 	}
 }

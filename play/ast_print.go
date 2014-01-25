@@ -16,6 +16,7 @@ package main
 var x = []int{1,2,3}
 var y = []Any{1,2,3}
 var z = []int{}
+var abcdef = nil
 `
 
 	// Create the AST by parsing src.
