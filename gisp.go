@@ -45,7 +45,7 @@ func main() {
 		p := parser.ParseFromString("<REPL>", string(line)+"\n")
 		fmt.Println(p)
 
-		a := generator.EvalExprs(p)
+		a := generator.GenerateAST(p)
 		fset := token.NewFileSet()
 		ast.Print(fset, a)
 

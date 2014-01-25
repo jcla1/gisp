@@ -6,47 +6,81 @@ import (
 	"go/token"
 )
 
-// func generateAST(tree []parser.Node) *ast.File {
-// 	return &ast.File{Name: makeIdent("main"), Decls: generateDeclarations(tree)}
-// }
+func GenerateAST(tree []parser.Node) *ast.File {
+	f := &ast.File{Name: makeIdent("main")}
+	decls := make([]ast.Decl, 0, len(tree))
 
-// func generateDeclarations(tree []parser.Node) []ast.Decl {
-// 	decls := make([]ast.Decl, len(tree))
+	if len(tree) < 1 {
+		return f
+	}
 
-// 	for i, node := range tree {
-// 		switch node.Type() {
-// 		case parser.NodeCall:
-// 			decls[i] = generateDeclaration(node)
-// 		default:
-// 			panic("unexpected behaviour!")
-// 		}
-// 	}
+	if isNSDecl(tree[0]) {
+		name, imports := getNamespace(tree[0].(*parser.CallNode))
 
-// 	return decls
-// }
+		f.Name = name
+		if imports != nil {
+			decls = append(decls, imports)
+		}
 
-// func generateDeclaration(node parser.CallNode) ast.Decl {
-// 	if node.Callee.(parser.IdentNode).Ident == "def" {
-// 		return evalDef(node)
-// 	}
+		tree = tree[1:]
+	}
 
-// 	return nil
-// }
+	f.Decls = decls
+	return f
+}
 
-// func evalDef(node parser.CallNode) ast.Decl {
-// 	ident := node.Callee.(parser.IdentNode).Ident
-// 	val := evalExpr(node.Args[0])
+func isNSDecl(node parser.Node) bool {
+	if node.Type() != parser.NodeCall {
+		return false
+	}
 
-// 	return &ast.GenDecl{
-// 		Tok: token.VAR,
-// 		Specs: []ast.Spec{
-// 			&ast.ValueSpec{
-// 				Names:  []*ast.Ident{makeIdent(ident.Value)},
-// 				Values: []ast.Expr{val},
-// 			},
-// 		},
-// 	}
-// }
+	call := node.(*parser.CallNode)
+	if call.Callee.(*parser.IdentNode).Ident != "ns" {
+		return false
+	}
+
+	if len(call.Args) < 1 {
+		return false
+	}
+
+	return true
+}
+
+func getNamespace(node *parser.CallNode) (*ast.Ident, ast.Decl) {
+	return getPackageName(node), getImports(node)
+}
+
+func getPackageName(node *parser.CallNode) *ast.Ident {
+	if node.Args[0].Type() != parser.NodeIdent {
+		panic("ns package name is not an identifier!")
+	}
+
+	return makeIdent(node.Args[0].(*parser.IdentNode).Ident)
+}
+
+func getImports(node *parser.CallNode) ast.Decl {
+	if len(node.Args) < 2 {
+		return nil
+	}
+
+	imports := node.Args[1:]
+	specs := make([]ast.Spec, len(imports))
+
+	for i, imp := range imports {
+		if t := imp.Type(); t == parser.NodeVector {
+			specs[i] = makeImportSpecFromVector(imp.(*parser.VectorNode))
+		} else if t == parser.NodeString {
+			path := makeBasicLit(token.STRING, imp.(*parser.StringNode).Value)
+			specs[i] = makeImportSpec(path, nil)
+		} else {
+			panic("invalid import!")
+		}
+	}
+
+	decl := makeGeneralDecl(token.IMPORT, specs)
+	decl.Lparen = token.Pos(1) // Need this so we can have multiple imports
+	return decl
+}
 
 func EvalExprs(nodes []parser.Node) []ast.Expr {
 	out := make([]ast.Expr, len(nodes))
@@ -85,12 +119,84 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
 	case checkLetArgs(node):
 		return makeLetFun(node)
+	case checkFunArgs(node):
+		nodes := node.Args[0].(*parser.VectorNode).Nodes
+		idents := make([]*parser.IdentNode, len(nodes))
+		for i := 0; i < len(nodes); i++ {
+			idents[i] = nodes[i].(*parser.IdentNode)
+		}
+
+		params := makeIdentSlice(idents)
+		body := wrapExprsWithStmt(EvalExprs(node.Args[1:]))
+		return makeFunLit(params, body)
+	case checkDefArgs(node):
+		panic("you can't have a def within an expression!")
+	case checkNSArgs(node):
+		panic("you can't define a namespace in an expression!")
 	}
 
 	callee := EvalExpr(node.Callee)
 	args := EvalExprs(node.Args)
 
 	return makeFunCall(callee, args)
+}
+
+func checkNSArgs(node *parser.CallNode) bool {
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "ns" {
+		return false
+	}
+
+	return true
+}
+
+// Only need this to check if "def" is in
+// an expression, which is illegal
+func checkDefArgs(node *parser.CallNode) bool {
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "def" {
+		return false
+	}
+
+	return true
+}
+
+func checkFunArgs(node *parser.CallNode) bool {
+	// Need an identifier for it to be "fn"
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "fn" {
+		return false
+	}
+
+	// Need argument list and at least one expression
+	if len(node.Args) < 2 {
+		return false
+	}
+
+	// Parameters should be a vector
+	params := node.Args[0]
+	if params.Type() != parser.NodeVector {
+		return false
+	}
+
+	p := params.(*parser.VectorNode)
+	for _, param := range p.Nodes {
+		// TODO: change this in case of variable unpacking
+		if param.Type() != parser.NodeIdent {
+			return false
+		}
+	}
+
+	return true
 }
 
 func checkLetArgs(node *parser.CallNode) bool {
@@ -191,9 +297,7 @@ func makeFunLit(args []*ast.Ident, body []ast.Stmt) *ast.FuncLit {
 				},
 			},
 		},
-		Body: &ast.BlockStmt{
-			List: returnLast(body),
-		},
+		Body: makeBlockStmt(returnLast(body)),
 	}
 
 	if len(args) > 0 {
@@ -256,4 +360,41 @@ func makeBasicLit(kind token.Token, value string) *ast.BasicLit {
 
 func makeBlockStmt(statements []ast.Stmt) *ast.BlockStmt {
 	return &ast.BlockStmt{List: statements}
+}
+
+func makeGeneralDecl(typ token.Token, specs []ast.Spec) *ast.GenDecl {
+	return &ast.GenDecl{
+		Tok:   typ,
+		Specs: specs,
+	}
+}
+
+func makeImportSpec(path *ast.BasicLit, name *ast.Ident) *ast.ImportSpec {
+	spec := &ast.ImportSpec{Path: path}
+
+	if name != nil {
+		spec.Name = name
+	}
+
+	return spec
+}
+
+func makeImportSpecFromVector(vect *parser.VectorNode) *ast.ImportSpec {
+	if len(vect.Nodes) < 3 {
+		panic("invalid use of import!")
+	}
+
+	if vect.Nodes[0].Type() != parser.NodeString {
+		panic("invalid use of import!")
+	}
+
+	pathString := vect.Nodes[0].(*parser.StringNode).Value
+	path := makeBasicLit(token.STRING, pathString)
+
+	if vect.Nodes[1].Type() != parser.NodeIdent || vect.Nodes[1].(*parser.IdentNode).Ident != ":as" {
+		panic("invalid use of import! expecting: \":as\"!!!")
+	}
+	name := makeIdent(vect.Nodes[2].(*parser.IdentNode).Ident)
+
+	return makeImportSpec(path, name)
 }

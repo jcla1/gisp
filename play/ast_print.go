@@ -13,18 +13,12 @@ func main() {
 	// src is the input for which we want to print the AST.
 	src := `
 package main
-var x = []int{1,2,3}
-var y = []Any{1,2,3}
-var z = []int{}
-var abcdef = nil
-var square = func(a, b Any) Any {
-	println("hello")
-	{
-		x := 10
-		y := 20
-		println(x + y)
-	}
-}
+import (
+	neuralNetwork "github.com/jcla1/nn"
+	"github.com/jcla1/matrix"
+	"go/ast"
+	"strings"
+)
 `
 
 	// Create the AST by parsing src.
@@ -36,6 +30,7 @@ var square = func(a, b Any) Any {
 
 	// (f.Decls[0].(*ast.GenDecl)).Specs[0].Name.Obj = nil
 	// ((f.Decls[0].(*ast.GenDecl)).Specs[0].(*ast.TypeSpec).Name.Obj) = nil
+	// f.Imports = nil
 	ast.Print(fset, f)
 
 	// Print the AST.
