@@ -9,6 +9,25 @@ import (
 	"strings"
 )
 
+func makeIfStmtFun(node *parser.CallNode) ast.Expr {
+    var otherwise ast.Stmt = nil
+    if len(node.Args) > 2 {
+        otherwise = makeReturnStmt(EvalExpr(node.Args[2]))
+    }
+
+    cond, body := EvalExpr(node.Args[0]), makeBlockStmt([]ast.Stmt{makeReturnStmt(EvalExpr(node.Args[1]))})
+
+    return makeFunCall(makeFunLit([]*ast.Ident{}, []ast.Stmt{makeIfStmt(cond, body, otherwise)}), []ast.Expr{})
+}
+
+func makeIfStmt(cond ast.Expr, body *ast.BlockStmt, otherwise ast.Stmt) *ast.IfStmt {
+    return &ast.IfStmt{
+        Cond: cond,
+        Body: body,
+        Else: otherwise,
+    }
+}
+
 func makeLetFun(node *parser.CallNode) ast.Expr {
 	bindings := makeBindings(node.Args[0].(*parser.VectorNode))
 	// TODO: clean this!
@@ -99,12 +118,15 @@ func returnLast(stmts []ast.Stmt) []ast.Stmt {
 		return stmts
 	}
 
-	stmts[len(stmts)-1] = &ast.ReturnStmt{
-		Results: []ast.Expr{
-			stmts[len(stmts)-1].(*ast.ExprStmt).X,
-		},
-	}
+	stmts[len(stmts)-1] = makeReturnStmt(stmts[len(stmts)-1].(*ast.ExprStmt).X)
+
 	return stmts
+}
+
+func makeReturnStmt(expr ast.Expr) ast.Stmt {
+    return &ast.ReturnStmt{
+        Results: []ast.Expr{expr},
+    }
 }
 
 func makeIdentSlice(nodes []*parser.IdentNode) []*ast.Ident {

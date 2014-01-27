@@ -149,6 +149,22 @@ func checkNSArgs(node *parser.CallNode) bool {
 	return true
 }
 
+func checkIfArgs(node *parser.CallNode) bool {
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "if" {
+		return false
+	}
+
+	if len(node.Args) < 2 {
+		return false
+	}
+
+	return true
+}
+
 // Only need this to check if "def" is in
 // an expression, which is illegal
 func checkDefArgs(node *parser.CallNode) bool {

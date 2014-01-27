@@ -56,6 +56,8 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
 	case checkLetArgs(node):
 		return makeLetFun(node)
+    case checkIfArgs(node):
+        return makeIfStmtFun(node)
 	case checkFunArgs(node):
 		nodes := node.Args[0].(*parser.VectorNode).Nodes
 		idents := make([]*parser.IdentNode, len(nodes))
