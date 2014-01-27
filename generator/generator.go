@@ -2,22 +2,20 @@ package generator
 
 import (
 	"../parser"
-	"bytes"
 	"fmt"
 	"go/ast"
 	"go/token"
-	"regexp"
-	"strings"
 )
 
 func GenerateAST(tree []parser.Node) *ast.File {
-	f := &ast.File{Name: makeIdent("main")}
+	f := &ast.File{Name: ast.NewIdent("main")}
 	decls := make([]ast.Decl, 0, len(tree))
 
 	if len(tree) < 1 {
 		return f
 	}
 
+	// you can only have (ns ...) as the first form
 	if isNSDecl(tree[0]) {
 		name, imports := getNamespace(tree[0].(*parser.CallNode))
 
@@ -72,7 +70,7 @@ func evalDef(node *parser.CallNode) ast.Decl {
 	val := EvalExpr(node.Args[1])
 	fn, ok := val.(*ast.FuncLit)
 
-	ident := makeIdent(goify(node.Args[0].(*parser.IdentNode).Ident, true))
+	ident := ast.NewIdent(goify(node.Args[0].(*parser.IdentNode).Ident, true))
 
 	if ok {
 		if ident.Name != "Main" {
@@ -112,7 +110,7 @@ func getPackageName(node *parser.CallNode) *ast.Ident {
 		panic("ns package name is not an identifier!")
 	}
 
-	return makeIdent(node.Args[0].(*parser.IdentNode).Ident)
+	return ast.NewIdent(node.Args[0].(*parser.IdentNode).Ident)
 }
 
 func getImports(node *parser.CallNode) ast.Decl {
@@ -137,81 +135,6 @@ func getImports(node *parser.CallNode) ast.Decl {
 	decl := makeGeneralDecl(token.IMPORT, specs)
 	decl.Lparen = token.Pos(1) // Need this so we can have multiple imports
 	return decl
-}
-
-func EvalExprs(nodes []parser.Node) []ast.Expr {
-	out := make([]ast.Expr, len(nodes))
-
-	for i, node := range nodes {
-		out[i] = EvalExpr(node)
-	}
-
-	return out
-}
-
-func EvalExpr(node parser.Node) ast.Expr {
-	switch t := node.Type(); t {
-	case parser.NodeCall:
-		node := node.(*parser.CallNode)
-		return evalFunCall(node)
-	case parser.NodeVector:
-		node := node.(*parser.VectorNode)
-		return makeVector(makeIdent("Any"), EvalExprs(node.Nodes))
-	case parser.NodeNumber:
-		node := node.(*parser.NumberNode)
-		return makeBasicLit(node.NumberType, node.Value)
-	case parser.NodeString:
-		node := node.(*parser.StringNode)
-		return makeBasicLit(token.STRING, node.Value)
-	case parser.NodeIdent:
-		node := node.(*parser.IdentNode)
-
-		if strings.Contains(node.Ident, "/") {
-			parts := strings.Split(node.Ident, "/")
-			outerSelector := makeSelectorExpr(makeIdent(parts[0]), makeIdent(goify(parts[1], true)))
-
-			for i := 2; i < len(parts); i++ {
-				outerSelector = makeSelectorExpr(outerSelector, makeIdent(goify(parts[i], true)))
-			}
-
-			return outerSelector
-		}
-
-		return makeIdent(goify(node.Ident, false))
-	default:
-		println(t)
-		panic("not implemented yet!")
-	}
-}
-
-func evalFunCall(node *parser.CallNode) ast.Expr {
-	switch {
-	case checkLetArgs(node):
-		return makeLetFun(node)
-	case checkFunArgs(node):
-		nodes := node.Args[0].(*parser.VectorNode).Nodes
-		idents := make([]*parser.IdentNode, len(nodes))
-		for i := 0; i < len(nodes); i++ {
-			idents[i] = nodes[i].(*parser.IdentNode)
-		}
-
-		params := makeIdentSlice(idents)
-		body := wrapExprsWithStmt(EvalExprs(node.Args[1:]))
-		return makeFunLit(params, body)
-	case checkDefArgs(node):
-		panic("you can't have a def within an expression!")
-	case checkNSArgs(node):
-		panic("you can't define a namespace in an expression!")
-	}
-
-	callee := EvalExpr(node.Callee)
-	if c, ok := callee.(*ast.Ident); ok {
-		c.Name = goify(c.Name, true)
-	}
-
-	args := EvalExprs(node.Args)
-
-	return makeFunCall(callee, args)
 }
 
 func checkNSArgs(node *parser.CallNode) bool {
@@ -308,215 +231,4 @@ func checkLetArgs(node *parser.CallNode) bool {
 	}
 
 	return true
-}
-
-func makeLetFun(node *parser.CallNode) ast.Expr {
-	bindings := makeBindings(node.Args[0].(*parser.VectorNode))
-	// TODO: clean this!
-	return makeFunCall(makeFunLit([]*ast.Ident{}, append(bindings, wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)), []ast.Expr{})
-}
-
-func makeBindings(bindings *parser.VectorNode) []ast.Stmt {
-	vars := make([]*ast.Ident, len(bindings.Nodes)/2)
-	for i := 0; i < len(bindings.Nodes); i += 2 {
-		vars[i/2] = makeIdent(bindings.Nodes[i].(*parser.IdentNode).Ident)
-	}
-
-	vals := make([]ast.Expr, len(bindings.Nodes)/2)
-	for i := 1; i < len(bindings.Nodes); i += 2 {
-		vals[(i-1)/2] = EvalExpr(bindings.Nodes[i])
-	}
-
-	stmts := make([]ast.Stmt, len(vars))
-	for i := 0; i < len(vars); i++ {
-		stmts[i] = makeAssignStmt(vars[i], vals[i])
-	}
-
-	return stmts
-}
-
-func makeAssignStmt(name, val ast.Expr) *ast.AssignStmt {
-	return &ast.AssignStmt{
-		Lhs: []ast.Expr{name},
-		Rhs: []ast.Expr{val},
-		// TODO: check if following line can be omitted
-		Tok: token.DEFINE,
-	}
-}
-
-func wrapExprsWithStmt(exps []ast.Expr) []ast.Stmt {
-	out := make([]ast.Stmt, len(exps))
-	for i, v := range exps {
-		out[i] = makeExprStmt(v)
-	}
-	return out
-}
-
-func makeExprStmt(exp ast.Expr) ast.Stmt {
-	return &ast.ExprStmt{X: exp}
-}
-
-func makeFunCall(callee ast.Expr, args []ast.Expr) ast.Expr {
-	return &ast.CallExpr{
-		Fun:  callee,
-		Args: args,
-	}
-}
-
-func makeFunLit(args []*ast.Ident, body []ast.Stmt) *ast.FuncLit {
-	node := &ast.FuncLit{
-		Type: &ast.FuncType{
-			Results: &ast.FieldList{
-				List: []*ast.Field{
-					&ast.Field{
-						Type: makeIdent("Any"),
-					},
-				},
-			},
-		},
-		Body: makeBlockStmt(returnLast(body)),
-	}
-
-	if len(args) > 0 {
-		node.Type.Params = makeParameterList(args)
-	}
-
-	return node
-}
-
-func makeParameterList(args []*ast.Ident) *ast.FieldList {
-	return &ast.FieldList{
-		List: []*ast.Field{
-			&ast.Field{
-				Type:  makeIdent("Any"),
-				Names: args,
-			},
-		},
-	}
-}
-
-func returnLast(stmts []ast.Stmt) []ast.Stmt {
-	if len(stmts) < 1 {
-		return stmts
-	}
-
-	stmts[len(stmts)-1] = &ast.ReturnStmt{
-		Results: []ast.Expr{
-			stmts[len(stmts)-1].(*ast.ExprStmt).X,
-		},
-	}
-	return stmts
-}
-
-func makeIdentSlice(nodes []*parser.IdentNode) []*ast.Ident {
-	out := make([]*ast.Ident, len(nodes))
-	for i, node := range nodes {
-		out[i] = makeIdent(node.Ident)
-	}
-	return out
-}
-
-func makeIdent(name string) *ast.Ident {
-	return ast.NewIdent(name)
-}
-
-func makeVector(typ *ast.Ident, elements []ast.Expr) *ast.CompositeLit {
-	return makeCompositeLit(&ast.ArrayType{Elt: typ}, elements)
-}
-
-func makeCompositeLit(typ ast.Expr, elements []ast.Expr) *ast.CompositeLit {
-	return &ast.CompositeLit{
-		Type: typ,
-		Elts: elements,
-	}
-}
-
-func makeBasicLit(kind token.Token, value string) *ast.BasicLit {
-	return &ast.BasicLit{Kind: kind, Value: value}
-}
-
-func makeBlockStmt(statements []ast.Stmt) *ast.BlockStmt {
-	return &ast.BlockStmt{List: statements}
-}
-
-func makeGeneralDecl(typ token.Token, specs []ast.Spec) *ast.GenDecl {
-	return &ast.GenDecl{
-		Tok:   typ,
-		Specs: specs,
-	}
-}
-
-func makeImportSpec(path *ast.BasicLit, name *ast.Ident) *ast.ImportSpec {
-	spec := &ast.ImportSpec{Path: path}
-
-	if name != nil {
-		spec.Name = name
-	}
-
-	return spec
-}
-
-func makeImportSpecFromVector(vect *parser.VectorNode) *ast.ImportSpec {
-	if len(vect.Nodes) < 3 {
-		panic("invalid use of import!")
-	}
-
-	if vect.Nodes[0].Type() != parser.NodeString {
-		panic("invalid use of import!")
-	}
-
-	pathString := vect.Nodes[0].(*parser.StringNode).Value
-	path := makeBasicLit(token.STRING, pathString)
-
-	if vect.Nodes[1].Type() != parser.NodeIdent || vect.Nodes[1].(*parser.IdentNode).Ident != ":as" {
-		panic("invalid use of import! expecting: \":as\"!!!")
-	}
-	name := makeIdent(vect.Nodes[2].(*parser.IdentNode).Ident)
-
-	return makeImportSpec(path, name)
-}
-
-func mainable(fn *ast.FuncDecl) *ast.FuncDecl {
-	fn.Type.Results = nil
-
-	returnStmt := fn.Body.List[len(fn.Body.List)-1].(*ast.ReturnStmt)
-	fn.Body.List[len(fn.Body.List)-1] = makeExprStmt(returnStmt.Results[0])
-
-	return fn
-}
-
-func makeFuncDeclFromFuncLit(name *ast.Ident, f *ast.FuncLit) *ast.FuncDecl {
-	return &ast.FuncDecl{
-		Name: name,
-		Type: f.Type,
-		Body: f.Body,
-	}
-}
-
-func makeValueSpec(name *ast.Ident, value ast.Expr) *ast.ValueSpec {
-	return &ast.ValueSpec{
-		Names:  []*ast.Ident{name},
-		Values: []ast.Expr{value},
-	}
-}
-
-func makeSelectorExpr(x ast.Expr, sel *ast.Ident) *ast.SelectorExpr {
-	return &ast.SelectorExpr{
-		X: x,
-		Sel: sel,
-	}
-}
-
-var camelingRegex = regexp.MustCompile("[0-9A-Za-z]+")
-
-func goify(src string, capitalizeFirst bool) string {
-	src = strings.Replace(src, "/", ".", -1)
-	byteSrc := []byte(src)
-	chunks := camelingRegex.FindAll(byteSrc, -1)
-	for idx, val := range chunks {
-		if idx > 0 || capitalizeFirst {
-			chunks[idx] = bytes.Title(val)
-		}
-	}
-	return string(bytes.Join(chunks, nil))
 }
