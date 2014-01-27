@@ -2,8 +2,10 @@
     "fmt")
 
 (def main (fn []
-    (fmt/println (my-func 10))
+    (my-func 10)
     ))
 
 (def my-func (fn [n]
-    n))
+    (let [[x n]
+          [y x]]
+          (println y))))

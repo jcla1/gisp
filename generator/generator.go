@@ -70,17 +70,16 @@ func evalDef(node *parser.CallNode) ast.Decl {
 	val := EvalExpr(node.Args[1])
 	fn, ok := val.(*ast.FuncLit)
 
-	ident := ast.NewIdent(goify(node.Args[0].(*parser.IdentNode).Ident, true))
+	ident := makeIdomaticIdent(node.Args[0].(*parser.IdentNode).Ident)
 
 	if ok {
-		if ident.Name != "Main" {
-			return makeFuncDeclFromFuncLit(ident, fn)
-		} else {
-			ident.Name = "main"
-			return mainable(makeFuncDeclFromFuncLit(ident, fn))
+		if ident.Name == "main" {
+			mainable(fn)
 		}
+
+		return makeFunDeclFromFuncLit(ident, fn)
 	} else {
-		return makeGeneralDecl(token.VAR, []ast.Spec{makeValueSpec(ident, val)})
+		return makeGeneralDecl(token.VAR, []ast.Spec{makeValueSpec([]*ast.Ident{ident}, []ast.Expr{val})})
 	}
 }
 
@@ -113,30 +112,6 @@ func getPackageName(node *parser.CallNode) *ast.Ident {
 	return ast.NewIdent(node.Args[0].(*parser.IdentNode).Ident)
 }
 
-func getImports(node *parser.CallNode) ast.Decl {
-	if len(node.Args) < 2 {
-		return nil
-	}
-
-	imports := node.Args[1:]
-	specs := make([]ast.Spec, len(imports))
-
-	for i, imp := range imports {
-		if t := imp.Type(); t == parser.NodeVector {
-			specs[i] = makeImportSpecFromVector(imp.(*parser.VectorNode))
-		} else if t == parser.NodeString {
-			path := makeBasicLit(token.STRING, imp.(*parser.StringNode).Value)
-			specs[i] = makeImportSpec(path, nil)
-		} else {
-			panic("invalid import!")
-		}
-	}
-
-	decl := makeGeneralDecl(token.IMPORT, specs)
-	decl.Lparen = token.Pos(1) // Need this so we can have multiple imports
-	return decl
-}
-
 func checkNSArgs(node *parser.CallNode) bool {
 	if node.Callee.Type() != parser.NodeIdent {
 		return false
@@ -144,106 +119,6 @@ func checkNSArgs(node *parser.CallNode) bool {
 
 	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "ns" {
 		return false
-	}
-
-	return true
-}
-
-func checkIfArgs(node *parser.CallNode) bool {
-	if node.Callee.Type() != parser.NodeIdent {
-		return false
-	}
-
-	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "if" {
-		return false
-	}
-
-	if len(node.Args) < 2 {
-		return false
-	}
-
-	return true
-}
-
-// Only need this to check if "def" is in
-// an expression, which is illegal
-func checkDefArgs(node *parser.CallNode) bool {
-	if node.Callee.Type() != parser.NodeIdent {
-		return false
-	}
-
-	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "def" {
-		return false
-	}
-
-	return true
-}
-
-func checkFunArgs(node *parser.CallNode) bool {
-	// Need an identifier for it to be "fn"
-	if node.Callee.Type() != parser.NodeIdent {
-		return false
-	}
-
-	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "fn" {
-		return false
-	}
-
-	// Need argument list and at least one expression
-	if len(node.Args) < 2 {
-		return false
-	}
-
-	// Parameters should be a vector
-	params := node.Args[0]
-	if params.Type() != parser.NodeVector {
-		return false
-	}
-
-	p := params.(*parser.VectorNode)
-	for _, param := range p.Nodes {
-		// TODO: change this in case of variable unpacking
-		if param.Type() != parser.NodeIdent {
-			return false
-		}
-	}
-
-	return true
-}
-
-func checkLetArgs(node *parser.CallNode) bool {
-	// Need an identifier for it to be "let"
-	if node.Callee.Type() != parser.NodeIdent {
-		return false
-	}
-
-	// Not a "let"
-	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "let" {
-		return false
-	}
-
-	// Need _at least_ the bindings & one expression
-	if len(node.Args) < 2 {
-		return false
-	}
-
-	// Bindings should be a vector
-	bindings := node.Args[0]
-	if bindings.Type() != parser.NodeVector {
-		return false
-	}
-
-	// There should be an even number of elements in the bindings
-	b := bindings.(*parser.VectorNode)
-	if len(b.Nodes)%2 != 0 {
-		return false
-	}
-
-	// The bound identifiers, should be identifiers
-	for i := 0; i < len(b.Nodes); i += 2 {
-		if b.Nodes[i].Type() != parser.NodeIdent {
-			return false
-		}
 	}
 
 	return true
