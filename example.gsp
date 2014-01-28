@@ -1,11 +1,12 @@
-(ns main
-    "fmt")
+(ns main)
 
 (def main (fn []
-    (my-func 10)
+    (my-func (fn [x] (println x) ()))
     ))
 
-(def my-func (fn [n]
-    (let [[x n]
-          [y x]]
-          (println y))))
+(def my-func (fn [printer]
+    (let [[x 10]
+          [y 20]]
+          (printer x)
+          (printer y)
+          ())))
