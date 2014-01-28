@@ -8,6 +8,8 @@ import (
 
 func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
+	case isUnaryOperator(node):
+		return makeUnaryExpr(unaryOperatorMap[node.Callee.(*parser.IdentNode).Ident], EvalExpr(node.Args[0]))
 	case isBinaryOperator(node):
 		return makeNAryBinaryExpr(node)
 	case checkLetArgs(node):
