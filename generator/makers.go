@@ -7,16 +7,27 @@ import (
 	"go/token"
 )
 
-// func makeIfStmtFun(node *parser.CallNode) ast.Expr {
-// 	var otherwise ast.Stmt = nil
-// 	if len(node.Args) > 2 {
-// 		otherwise = makeReturnStmt(h.E(EvalExpr(node.Args[2])))
-// 	}
+func makeIfStmtFunc(node *parser.CallNode) ast.Expr {
+	var elseBody ast.Stmt
+	if len(node.Args) > 2 {
+		elseBody = makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[2])))))
+	} else {
+        elseBody = makeBlockStmt(h.S(makeReturnStmt(h.E(ast.NewIdent("nil")))))
+    }
 
-// 	cond, body := EvalExpr(node.Args[0]), makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[1])))))
+    cond := EvalExpr(node.Args[0])
+    ifBody := makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[1])))))
 
-// 	return makeFuncCall(makeFunLitNoArgsSingleStmt(makeIfStmt(cond, body, otherwise)), h.EmptyE())
-// }
+    ifStmt := makeIfStmt(cond, ifBody, elseBody)
+    fnBody := makeBlockStmt(h.S(ifStmt))
+
+    returnList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
+    fnType := makeFuncType(returnList, nil)
+
+    fn := makeFuncLit(fnType, fnBody)
+
+	return makeFuncCall(fn, h.EmptyE())
+}
 
 func makeLetFun(node *parser.CallNode) ast.Expr {
 	bindings := makeBindings(node.Args[0].(*parser.VectorNode))

@@ -1,12 +1,11 @@
 (ns main)
 
 (def main (fn []
-    (my-func (fn [x] (println x) ()))
+    (if (let [[x 10] [y 20]]
+            (equals x y))
+        (my-fn "Hello World!"))
     ))
 
-(def my-func (fn [printer]
-    (let [[x 10]
-          [y 20]]
-          (printer x)
-          (printer y)
-          ())))
+(def my-fn (fn [str]
+    (println str)
+    ()))

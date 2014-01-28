@@ -15,7 +15,13 @@ func main() {
 package main
 
 func main() {
-fmt.Println(myNode.Node.Type.Hello)
+if true {
+	println("Hello")
+} else if false {
+	Dont(do(anything))
+} else {
+	something(el())
+}
 }
 `
 

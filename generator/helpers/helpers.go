@@ -8,16 +8,16 @@ func EmptyS() []ast.Stmt {
 	return []ast.Stmt{}
 }
 
-func S(stmt ast.Stmt) []ast.Stmt {
-	return []ast.Stmt{stmt}
+func S(stmts ...ast.Stmt) []ast.Stmt {
+	return stmts
 }
 
 func EmptyE() []ast.Expr {
 	return []ast.Expr{}
 }
 
-func E(expr ast.Expr) []ast.Expr {
-	return []ast.Expr{expr}
+func E(exprs ...ast.Expr) []ast.Expr {
+	return exprs
 }
 
 func EmptyI() []*ast.Ident {

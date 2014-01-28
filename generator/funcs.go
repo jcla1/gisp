@@ -10,8 +10,8 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
 	case checkLetArgs(node):
 		return makeLetFun(node)
-	// case checkIfArgs(node):
-	// 	return makeIfStmtFun(node)
+	case checkIfArgs(node):
+		return makeIfStmtFunc(node)
 	case checkFuncArgs(node):
 		argIdents := getArgIdentsFromVector(node.Args[0].(*parser.VectorNode))
 
