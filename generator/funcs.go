@@ -8,6 +8,8 @@ import (
 
 func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
+	case isBinaryOperator(node):
+		return makeNAryBinaryExpr(node)
 	case checkLetArgs(node):
 		return makeLetFun(node)
 	case checkIfArgs(node):
@@ -100,7 +102,6 @@ func makeFuncCall(callee ast.Expr, args []ast.Expr) ast.Expr {
 		Args: args,
 	}
 }
-
 
 // Fn type checks (let, fn, def, ns, etc.)
 
@@ -195,7 +196,6 @@ func checkLetArgs(node *parser.CallNode) bool {
 			return false
 		}
 	}
-
 
 	// The bound identifiers, should be identifiers
 	for _, bind := range b.Nodes {

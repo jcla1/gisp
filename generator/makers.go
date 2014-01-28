@@ -12,19 +12,19 @@ func makeIfStmtFunc(node *parser.CallNode) ast.Expr {
 	if len(node.Args) > 2 {
 		elseBody = makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[2])))))
 	} else {
-        elseBody = makeBlockStmt(h.S(makeReturnStmt(h.E(ast.NewIdent("nil")))))
-    }
+		elseBody = makeBlockStmt(h.S(makeReturnStmt(h.E(ast.NewIdent("nil")))))
+	}
 
-    cond := EvalExpr(node.Args[0])
-    ifBody := makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[1])))))
+	cond := EvalExpr(node.Args[0])
+	ifBody := makeBlockStmt(h.S(makeReturnStmt(h.E(EvalExpr(node.Args[1])))))
 
-    ifStmt := makeIfStmt(cond, ifBody, elseBody)
-    fnBody := makeBlockStmt(h.S(ifStmt))
+	ifStmt := makeIfStmt(cond, ifBody, elseBody)
+	fnBody := makeBlockStmt(h.S(ifStmt))
 
-    returnList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
-    fnType := makeFuncType(returnList, nil)
+	returnList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
+	fnType := makeFuncType(returnList, nil)
 
-    fn := makeFuncLit(fnType, fnBody)
+	fn := makeFuncLit(fnType, fnBody)
 
 	return makeFuncCall(fn, h.EmptyE())
 }
@@ -32,14 +32,14 @@ func makeIfStmtFunc(node *parser.CallNode) ast.Expr {
 func makeLetFun(node *parser.CallNode) ast.Expr {
 	bindings := makeBindings(node.Args[0].(*parser.VectorNode))
 
-    body := append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)
-    body[len(body)-1] = makeReturnStmt(h.E(body[len(body)-1].(*ast.ExprStmt).X))
+	body := append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)
+	body[len(body)-1] = makeReturnStmt(h.E(body[len(body)-1].(*ast.ExprStmt).X))
 
-    fieldList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
-    typ := makeFuncType(fieldList, nil)
-    fn := makeFuncLit(typ, makeBlockStmt(body))
+	fieldList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
+	typ := makeFuncType(fieldList, nil)
+	fn := makeFuncLit(typ, makeBlockStmt(body))
 
-    return makeFuncCall(fn, h.EmptyE())
+	return makeFuncCall(fn, h.EmptyE())
 	// return makeFuncCall(makeFuncLit(h.EmptyI(), append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)), h.EmptyE())
 }
 

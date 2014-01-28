@@ -243,6 +243,10 @@ func lexNumber(l *Lexer) stateFn {
 		return l.errorf("bad number syntax: %q", l.input[l.start:l.pos])
 	}
 
+	if l.start+1 == l.pos {
+		return lexIdentifier
+	}
+
 	if sign := l.peek(); sign == '+' || sign == '-' {
 		// Complex: 1+2i. No spaces, must end in 'i'.
 		if !l.scanNumber() || l.input[l.pos-1] != 'i' {
