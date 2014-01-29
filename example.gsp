@@ -1,11 +1,10 @@
 (ns main)
 
 (def main (fn []
-    (if (let [[x 10.0] [y 20.0]]
-            (/ x y 30.0))
+    (if (> 10 5)
         (my-fn "Hello World!"))
     ))
 
-(def my-fn (fn [str]
-    (println str)
-    ()))
+(def my-fn (fn [n]
+    ; (println str)
+    (- n 1 2 3 4)))
