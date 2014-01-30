@@ -10,10 +10,10 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	switch {
 	case isUnaryOperator(node):
 		return makeUnaryExpr(unaryOperatorMap[node.Callee.(*parser.IdentNode).Ident], EvalExpr(node.Args[0]))
-	case isBinaryOperator(node):
-		return makeNAryBinaryExpr(node)
-	case isComparisonOperator(node):
-		return makeNAryComparisonExpr(node)
+	case isCallableOperator(node):
+		return makeNAryCallableExpr(node)
+	case isLogicOperator(node):
+		return makeNAryLogicExpr(node)
 	case checkLetArgs(node):
 		return makeLetFun(node)
 	case checkIfArgs(node):

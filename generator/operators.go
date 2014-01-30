@@ -7,12 +7,8 @@ import (
 )
 
 var (
-	comparisonOperators = []string{">", ">=", "<", "<=", "="}
-	binaryOperatorMap   = map[string]token.Token{
-		"+":   token.ADD,
-		"-":   token.SUB,
-		"*":   token.MUL,
-		"/":   token.QUO,
+	callableOperators = []string{">", ">=", "<", "<=", "=", "+", "-", "*", "/"}
+	logicOperatorMap  = map[string]token.Token{
 		"and": token.LAND,
 		"or":  token.LOR,
 	}
@@ -22,51 +18,54 @@ var (
 	}
 )
 
-func isComparisonOperator(node *parser.CallNode) bool {
+func isCallableOperator(node *parser.CallNode) bool {
 	if node.Callee.Type() != parser.NodeIdent {
 		return false
 	}
 
 	ident := node.Callee.(*parser.IdentNode).Ident
 
-	for _, op := range comparisonOperators {
-		if op == ident {
-			return true
-		}
-	}
-
-	return false
+	return isInSlice(ident, callableOperators)
 }
 
 // We handle comparisons as a call to some go code, since you can only
 // compare ints, floats, cmplx, and such, you know...
-func makeNAryComparisonExpr(node *parser.CallNode) *ast.CallExpr {
+// We handle arithmetic operations as function calls, since all args are evaluated
+func makeNAryCallableExpr(node *parser.CallNode) *ast.CallExpr {
 	op := node.Callee.(*parser.IdentNode).Ident
 	args := EvalExprs(node.Args)
-	var selector *ast.Ident
+	var selector string
 
 	switch op {
 	case ">":
-		selector = ast.NewIdent("GT")
+		selector = "GT"
 	case ">=":
-		selector = ast.NewIdent("GTEQ")
+		selector = "GTEQ"
 	case "<":
-		selector = ast.NewIdent("LT")
+		selector = "LT"
 	case "<=":
-		selector = ast.NewIdent("LTEQ")
+		selector = "LTEQ"
 	case "=":
-		selector = ast.NewIdent("EQ")
+		selector = "EQ"
+	case "+":
+		selector = "ADD"
+	case "-":
+		selector = "SUB"
+	case "*":
+		selector = "MUL"
+	case "/":
+		selector = "DIV"
 	}
 
-	return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), selector), args)
+	return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), ast.NewIdent(selector)), args)
 }
 
-func isBinaryOperator(node *parser.CallNode) bool {
+func isLogicOperator(node *parser.CallNode) bool {
 	if node.Callee.Type() != parser.NodeIdent {
 		return false
 	}
 
-	_, ok := binaryOperatorMap[node.Callee.(*parser.IdentNode).Ident]
+	_, ok := logicOperatorMap[node.Callee.(*parser.IdentNode).Ident]
 
 	if len(node.Args) < 2 && ok {
 		panic("can't use binary operator with only one argument!")
@@ -75,8 +74,9 @@ func isBinaryOperator(node *parser.CallNode) bool {
 	return ok
 }
 
-func makeNAryBinaryExpr(node *parser.CallNode) *ast.BinaryExpr {
-	op := binaryOperatorMap[node.Callee.(*parser.IdentNode).Ident]
+// But logical comparisons are done properly, since those can short-circuit
+func makeNAryLogicExpr(node *parser.CallNode) *ast.BinaryExpr {
+	op := logicOperatorMap[node.Callee.(*parser.IdentNode).Ident]
 	outer := makeBinaryExpr(op, EvalExpr(node.Args[0]), EvalExpr(node.Args[1]))
 
 	for i := 2; i < len(node.Args); i++ {
@@ -113,4 +113,14 @@ func makeUnaryExpr(op token.Token, x ast.Expr) *ast.UnaryExpr {
 		X:  x,
 		Op: op,
 	}
+}
+
+func isInSlice(elem string, slice []string) bool {
+	for _, el := range slice {
+		if elem == el {
+			return true
+		}
+	}
+
+	return false
 }
