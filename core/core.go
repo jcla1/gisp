@@ -105,3 +105,21 @@ func EQ(args ...Any) bool {
 
     return true
 }
+
+// greater than or equal
+func GTEQ(args ...Any) bool {
+    if EQ(args) || GT(args) {
+        return true
+    }
+
+    return false
+}
+
+// less than or equal
+func LTEQ(args ...Any) bool {
+    if EQ(args) || LT(args) {
+        return true
+    }
+
+    return false
+}

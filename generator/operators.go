@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	comparisonOperators = []string{">", "<", "="}
+	comparisonOperators = []string{">", ">=", "<", "<=", "="}
 	binaryOperatorMap = map[string]token.Token{
 		"+": token.ADD,
 		"-": token.SUB,
@@ -48,8 +48,12 @@ func makeNAryComparisonExpr(node *parser.CallNode) *ast.CallExpr {
     switch op {
     case ">":
         selector = ast.NewIdent("GT")
+    case ">=":
+        selector = ast.NewIdent("GTEQ")
     case "<":
         selector = ast.NewIdent("LT")
+    case "<=":
+        selector = ast.NewIdent("LTEQ")
     case "=":
         selector = ast.NewIdent("EQ")
     }
