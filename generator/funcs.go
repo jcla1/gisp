@@ -12,8 +12,8 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 		return makeUnaryExpr(unaryOperatorMap[node.Callee.(*parser.IdentNode).Ident], EvalExpr(node.Args[0]))
 	case isBinaryOperator(node):
 		return makeNAryBinaryExpr(node)
-	// case isComparisonOperator(node):
-	// 	return makeNAryComparisonExpr(node)
+	case isComparisonOperator(node):
+		return makeNAryComparisonExpr(node)
 	case checkLetArgs(node):
 		return makeLetFun(node)
 	case checkIfArgs(node):
@@ -100,7 +100,7 @@ func makeReturnStmt(exprs []ast.Expr) ast.Stmt {
 	}
 }
 
-func makeFuncCall(callee ast.Expr, args []ast.Expr) ast.Expr {
+func makeFuncCall(callee ast.Expr, args []ast.Expr) *ast.CallExpr {
 	return &ast.CallExpr{
 		Fun:  callee,
 		Args: args,

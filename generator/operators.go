@@ -7,12 +7,7 @@ import (
 )
 
 var (
-	comparisonOperatorMap = map[string]token.Token{
-		">": token.GTR,
-		"<": token.LSS,
-		"=": token.EQL,
-	}
-
+	comparisonOperators = []string{">", "<", "="}
 	binaryOperatorMap = map[string]token.Token{
 		"+": token.ADD,
 		"-": token.SUB,
@@ -32,23 +27,34 @@ func isComparisonOperator(node *parser.CallNode) bool {
 		return false
 	}
 
-	_, ok := comparisonOperatorMap[node.Callee.(*parser.IdentNode).Ident]
+    ident := node.Callee.(*parser.IdentNode).Ident
 
-	if len(node.Args) < 2 && ok {
-		panic("can't use comparison operator with only one argument")
-	}
+	for _, op := range comparisonOperators {
+        if op == ident {
+            return true
+        }
+    }
 
-	return ok
+	return false
 }
 
-func makeNAryComparisonExpr(node *parser.CallNode) *ast.BinaryExpr {
-	op := comparisonOperatorMap[node.Callee.(*parser.IdentNode).Ident]
+// We handle comparisons as a call to some go code, since you can only
+// compare ints, floats, cmplx, and such, you know...
+func makeNAryComparisonExpr(node *parser.CallNode) *ast.CallExpr {
+    op := node.Callee.(*parser.IdentNode).Ident
+    args := EvalExprs(node.Args)
+    var selector *ast.Ident
 
-	return makeBinaryExpr(op, EvalExpr(node.Args[0]), EvalExpr(node.Args[1]))
-}
+    switch op {
+    case ">":
+        selector = ast.NewIdent("GT")
+    case "<":
+        selector = ast.NewIdent("LT")
+    case "=":
+        selector = ast.NewIdent("EQ")
+    }
 
-func chainComparisons(nodes []parser.Node) *ast.BinaryExpr {
-    return nil
+    return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), selector), args)
 }
 
 func isBinaryOperator(node *parser.CallNode) bool {
