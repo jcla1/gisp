@@ -18,6 +18,8 @@ var (
 		"-": token.SUB,
 		"*": token.MUL,
 		"/": token.QUO,
+        "and": token.LAND,
+        "or": token.LOR,
 	}
 
 	unaryOperatorMap = map[string]token.Token{

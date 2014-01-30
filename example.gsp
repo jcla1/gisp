@@ -7,4 +7,4 @@
 
 (def my-fn (fn [n]
     ; (println str)
-    (- n 1 2 3 4)))
+    (and n 1 2 3 4)))
