@@ -19,19 +19,22 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	case checkIfArgs(node):
 		return makeIfStmtFunc(node)
 	case checkFuncArgs(node):
-		argIdents := getArgIdentsFromVector(node.Args[0].(*parser.VectorNode))
-
 		// TODO: In case of type annotations change the following
 		returnField := []*ast.Field{makeField(nil, anyType)}
 		results := makeFieldList(returnField)
 
-		var params *ast.FieldList = nil
+		argIdents, ellipsis := getArgIdentsFromVector(node.Args[0].(*parser.VectorNode))
+		params := make([]*ast.Field, 0, len(argIdents))
 
 		if len(argIdents) != 0 {
-			params = makeFieldList([]*ast.Field{makeField(argIdents, anyType)})
+			params = append(params, makeField(argIdents, anyType))
 		}
 
-		fnType := makeFuncType(results, params)
+		if ellipsis != nil {
+			params = append(params, makeField(h.I(ellipsis), makeEllipsis(anyType)))
+		}
+
+		fnType := makeFuncType(results, makeFieldList(params))
 		body := makeFuncBody(EvalExprs(node.Args[1:]))
 
 		return makeFuncLit(fnType, body)
@@ -51,14 +54,25 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 	return makeFuncCall(callee, args)
 }
 
-func getArgIdentsFromVector(vect *parser.VectorNode) []*ast.Ident {
+func getArgIdentsFromVector(vect *parser.VectorNode) ([]*ast.Ident, *ast.Ident) {
 	args := vect.Nodes
-	argIdents := make([]*ast.Ident, len(vect.Nodes))
-	for i, arg := range args {
-		argIdents[i] = makeIdomaticIdent(arg.(*parser.IdentNode).Ident)
+	argIdents := make([]*ast.Ident, 0, len(vect.Nodes))
+
+	var ident string
+	var ellipsis *ast.Ident
+
+	for i := 0; i < len(args); i++ {
+		ident = args[i].(*parser.IdentNode).Ident
+
+		if ident == "&" {
+			ellipsis = makeIdomaticIdent(args[i+1].(*parser.IdentNode).Ident)
+			break
+		}
+
+		argIdents = append(argIdents, makeIdomaticIdent(ident))
 	}
 
-	return argIdents
+	return argIdents, ellipsis
 }
 
 func makeFuncBody(exprs []ast.Expr) *ast.BlockStmt {

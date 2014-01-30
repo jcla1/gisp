@@ -300,7 +300,7 @@ func isEndOfLine(r rune) bool {
 
 // isAlphaNumeric reports whether r is a valid rune for an identifier.
 func isAlphaNumeric(r rune) bool {
-	return r == '>' || r == '<' || r == '=' || r == '-' || r == ':' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
+	return r == '>' || r == '<' || r == '=' || r == '-' || r == '&' || r == '_' || r == '/' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func debug(msg string) {

@@ -5,6 +5,6 @@
         (println "Hello World!"))
     ))
 
-(def my-fn (fn [n]
+(def my-fn (fn [a b & rest]
     ; (println str)
     (> n 1 2 3 4)))

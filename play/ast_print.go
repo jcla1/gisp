@@ -14,6 +14,10 @@ func main() {
 	src := `
 package main
 
+func hello(a, b Any, rest ...Any) Any {
+	return a
+}
+
 func main() {
 	var f Any = myFn.(func(Any, Any) Any)
 }

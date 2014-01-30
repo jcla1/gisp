@@ -8,13 +8,13 @@ import (
 
 var (
 	comparisonOperators = []string{">", ">=", "<", "<=", "="}
-	binaryOperatorMap = map[string]token.Token{
-		"+": token.ADD,
-		"-": token.SUB,
-		"*": token.MUL,
-		"/": token.QUO,
-        "and": token.LAND,
-        "or": token.LOR,
+	binaryOperatorMap   = map[string]token.Token{
+		"+":   token.ADD,
+		"-":   token.SUB,
+		"*":   token.MUL,
+		"/":   token.QUO,
+		"and": token.LAND,
+		"or":  token.LOR,
 	}
 
 	unaryOperatorMap = map[string]token.Token{
@@ -27,13 +27,13 @@ func isComparisonOperator(node *parser.CallNode) bool {
 		return false
 	}
 
-    ident := node.Callee.(*parser.IdentNode).Ident
+	ident := node.Callee.(*parser.IdentNode).Ident
 
 	for _, op := range comparisonOperators {
-        if op == ident {
-            return true
-        }
-    }
+		if op == ident {
+			return true
+		}
+	}
 
 	return false
 }
@@ -41,24 +41,24 @@ func isComparisonOperator(node *parser.CallNode) bool {
 // We handle comparisons as a call to some go code, since you can only
 // compare ints, floats, cmplx, and such, you know...
 func makeNAryComparisonExpr(node *parser.CallNode) *ast.CallExpr {
-    op := node.Callee.(*parser.IdentNode).Ident
-    args := EvalExprs(node.Args)
-    var selector *ast.Ident
+	op := node.Callee.(*parser.IdentNode).Ident
+	args := EvalExprs(node.Args)
+	var selector *ast.Ident
 
-    switch op {
-    case ">":
-        selector = ast.NewIdent("GT")
-    case ">=":
-        selector = ast.NewIdent("GTEQ")
-    case "<":
-        selector = ast.NewIdent("LT")
-    case "<=":
-        selector = ast.NewIdent("LTEQ")
-    case "=":
-        selector = ast.NewIdent("EQ")
-    }
+	switch op {
+	case ">":
+		selector = ast.NewIdent("GT")
+	case ">=":
+		selector = ast.NewIdent("GTEQ")
+	case "<":
+		selector = ast.NewIdent("LT")
+	case "<=":
+		selector = ast.NewIdent("LTEQ")
+	case "=":
+		selector = ast.NewIdent("EQ")
+	}
 
-    return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), selector), args)
+	return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), selector), args)
 }
 
 func isBinaryOperator(node *parser.CallNode) bool {

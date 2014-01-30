@@ -68,12 +68,16 @@ func mainable(fn *ast.FuncLit) {
 	// return fn
 }
 
-func makeTypeAssertion(expr, typ ast.Expr) *ast.TypeAssertExpr {
-    return &ast.TypeAssertExpr{
-        X: expr,
-        Type: typ
-    }
-}
+// func makeTypeAssertFromArgList(expr ast.Expr, args []parser.Node) *ast.TypeAssertExpr {
+
+// 	argList
+
+// 	// currently we only support HOF that were written in Gisp
+// 	returnList := makeFieldList([]*ast.Field{makeField(nil, anyType)})
+// 	fnType := makeFuncType(returnList, argList)
+
+// 	return makeTypeAssertion(expr, fnType)
+// }
 
 //////////////////////////////////
 // Checked makers from here on! //
@@ -98,5 +102,18 @@ func makeGeneralDecl(typ token.Token, specs []ast.Spec) *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok:   typ,
 		Specs: specs,
+	}
+}
+
+func makeTypeAssertion(expr, typ ast.Expr) *ast.TypeAssertExpr {
+	return &ast.TypeAssertExpr{
+		X:    expr,
+		Type: typ,
+	}
+}
+
+func makeEllipsis(typ ast.Expr) *ast.Ellipsis {
+	return &ast.Ellipsis{
+		Elt: typ,
 	}
 }
