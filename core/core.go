@@ -30,7 +30,7 @@ func LT(args ...Any) bool {
             }
         }
 
-        if n < m {
+        if n >= m {
             return false
         }
     }
@@ -66,7 +66,7 @@ func GT(args ...Any) bool {
             }
         }
 
-        if n > m {
+        if n <= m {
             return false
         }
     }
