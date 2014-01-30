@@ -7,6 +7,8 @@ import (
 	"go/token"
 )
 
+var anyType = makeSelectorExpr(ast.NewIdent("core"), ast.NewIdent("Any"))
+
 func GenerateAST(tree []parser.Node) *ast.File {
 	f := &ast.File{Name: ast.NewIdent("main")}
 	decls := make([]ast.Decl, 0, len(tree))

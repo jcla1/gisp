@@ -22,13 +22,13 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 		argIdents := getArgIdentsFromVector(node.Args[0].(*parser.VectorNode))
 
 		// TODO: In case of type annotations change the following
-		returnField := []*ast.Field{makeField(nil, ast.NewIdent("Any"))}
+		returnField := []*ast.Field{makeField(nil, anyType)}
 		results := makeFieldList(returnField)
 
 		var params *ast.FieldList = nil
 
 		if len(argIdents) != 0 {
-			params = makeFieldList([]*ast.Field{makeField(argIdents, ast.NewIdent("Any"))})
+			params = makeFieldList([]*ast.Field{makeField(argIdents, anyType)})
 		}
 
 		fnType := makeFuncType(results, params)

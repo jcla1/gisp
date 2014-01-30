@@ -21,7 +21,7 @@ func makeIfStmtFunc(node *parser.CallNode) ast.Expr {
 	ifStmt := makeIfStmt(cond, ifBody, elseBody)
 	fnBody := makeBlockStmt(h.S(ifStmt))
 
-	returnList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
+	returnList := makeFieldList([]*ast.Field{makeField(nil, anyType)})
 	fnType := makeFuncType(returnList, nil)
 
 	fn := makeFuncLit(fnType, fnBody)
@@ -35,7 +35,7 @@ func makeLetFun(node *parser.CallNode) ast.Expr {
 	body := append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)
 	body[len(body)-1] = makeReturnStmt(h.E(body[len(body)-1].(*ast.ExprStmt).X))
 
-	fieldList := makeFieldList([]*ast.Field{makeField(nil, ast.NewIdent("Any"))})
+	fieldList := makeFieldList([]*ast.Field{makeField(nil, anyType)})
 	typ := makeFuncType(fieldList, nil)
 	fn := makeFuncLit(typ, makeBlockStmt(body))
 
@@ -66,6 +66,13 @@ func mainable(fn *ast.FuncLit) {
 	fn.Body.List[len(fn.Body.List)-1] = makeExprStmt(returnStmt.Results[0])
 
 	// return fn
+}
+
+func makeTypeAssertion(expr, typ ast.Expr) *ast.TypeAssertExpr {
+    return &ast.TypeAssertExpr{
+        X: expr,
+        Type: typ
+    }
 }
 
 //////////////////////////////////

@@ -24,7 +24,7 @@ func EvalExpr(node parser.Node) ast.Expr {
 
 	case parser.NodeVector:
 		node := node.(*parser.VectorNode)
-		return makeVector(ast.NewIdent("Any"), EvalExprs(node.Nodes))
+		return makeVector(anyType, EvalExprs(node.Nodes))
 
 	case parser.NodeNumber:
 		node := node.(*parser.NumberNode)

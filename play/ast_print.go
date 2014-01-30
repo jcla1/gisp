@@ -15,13 +15,7 @@ func main() {
 package main
 
 func main() {
-if true {
-	println("Hello")
-} else if false {
-	Dont(do(anything))
-} else {
-	something(el())
-}
+	var f Any = myFn.(func(Any, Any) Any)
 }
 `
 
