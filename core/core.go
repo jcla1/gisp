@@ -34,6 +34,8 @@ func LT(args ...Any) bool {
             return false
         }
     }
+
+    return true
 }
 
 // TODO: can only compare ints and slice lens for now.
@@ -68,6 +70,8 @@ func GT(args ...Any) bool {
             return false
         }
     }
+
+    return true
 }
 
 // TODO: can only compare ints and slice lens for now.
