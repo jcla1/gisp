@@ -2,6 +2,28 @@ package core
 
 type Any interface{}
 
+func MOD(a, b Any) int {
+    var n, m int
+
+    if isInt(a) {
+        n = a.(int)
+    } else if isFloat(a) {
+        n = int(a.(float64))
+    } else {
+        panic("need int/float argument to mod!")
+    }
+
+    if isInt(b) {
+        m = b.(int)
+    } else if isFloat(a) {
+        m = int(b.(float64))
+    } else {
+        panic("need int/float argument to mod!")
+    }
+
+    return n % m
+}
+
 func ADD(args ...Any) float64 {
     var sum float64 = 0
 
@@ -116,7 +138,24 @@ func EQ(args ...Any) bool {
     }
 
     for i := 0; i < len(args)-1; i++ {
-        n, m := args[i], args[i+1]
+        var n float64
+        if isInt(args[i]) {
+            n = float64(args[i].(int))
+        } else if isFloat(args[i]) {
+            n = args[i].(float64)
+        } else {
+            panic("you can't compare that!")
+        }
+
+        var m float64
+        if isInt(args[i+1]) {
+            m = float64(args[i+1].(int))
+        } else if isFloat(args[i+1]) {
+            m = args[i+1].(float64)
+        } else {
+            panic("you can't compare that!")
+        }
+
         if n != m {
             return false
         }

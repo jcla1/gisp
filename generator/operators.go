@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	callableOperators = []string{">", ">=", "<", "<=", "=", "+", "-", "*", "/"}
+	callableOperators = []string{">", ">=", "<", "<=", "=", "+", "-", "*", "/", "mod"}
 	logicOperatorMap  = map[string]token.Token{
 		"and": token.LAND,
 		"or":  token.LOR,
@@ -36,6 +36,7 @@ func makeNAryCallableExpr(node *parser.CallNode) *ast.CallExpr {
 	args := EvalExprs(node.Args)
 	var selector string
 
+	// TODO: abstract this away into a map!!!
 	switch op {
 	case ">":
 		selector = "GT"
@@ -55,6 +56,11 @@ func makeNAryCallableExpr(node *parser.CallNode) *ast.CallExpr {
 		selector = "MUL"
 	case "/":
 		selector = "DIV"
+	case "mod":
+		if len(node.Args) > 2 {
+			panic("can't calculate modulo with more than 2 arguments!")
+		}
+		selector = "MOD"
 	}
 
 	return makeFuncCall(makeSelectorExpr(ast.NewIdent("core"), ast.NewIdent(selector)), args)

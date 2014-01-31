@@ -51,3 +51,19 @@ func CamelCase(src string, capit bool) string {
 	}
 	return string(bytes.Join(chunks, nil))
 }
+
+var gensyms = func() <-chan string {
+	syms := make(chan string)
+	go func() {
+		i := 0
+		for {
+			syms <- Symbol("GEN_" + strconv.Itoa(i))
+			i++
+		}
+	}()
+	return syms
+}()
+
+func generateIdent() *ast.Ident {
+	return ast.NewIdent(<-gensyms)
+}
