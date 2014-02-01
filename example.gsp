@@ -3,7 +3,5 @@
     "../core")
 
 (def main (fn []
-    (fmt/println (factorial 10))))
-
-(def factorial (fn [n]
-    (if (< n 2) 1 (* n (factorial (+ n -1))))))
+    (loop [[x 0]]
+        (if (< x 10) (recur [[x (+ x 1)]] GEN_0) x))))

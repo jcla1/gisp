@@ -20,7 +20,7 @@ func EvalExpr(node parser.Node) ast.Expr {
 	switch t := node.Type(); t {
 	case parser.NodeCall:
 		node := node.(*parser.CallNode)
-		return evalFunCall(node)
+		return evalFuncCall(node)
 
 	case parser.NodeVector:
 		node := node.(*parser.VectorNode)

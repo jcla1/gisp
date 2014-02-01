@@ -81,7 +81,7 @@ func evalDef(node *parser.CallNode) ast.Decl {
 
 		return makeFunDeclFromFuncLit(ident, fn)
 	} else {
-		return makeGeneralDecl(token.VAR, []ast.Spec{makeValueSpec([]*ast.Ident{ident}, []ast.Expr{val})})
+		return makeGeneralDecl(token.VAR, []ast.Spec{makeValueSpec([]*ast.Ident{ident}, []ast.Expr{val}, nil)})
 	}
 }
 

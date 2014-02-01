@@ -20,10 +20,11 @@
                 (collatz-longest-helper m n max))))))
 
 (def collatz-length (fn [n acc]
-    (let [[next (next-collatz n)]]
+    (let [[next (next-collatz n)]
+          [m (+ acc 1)]]
         (if (= next 1)
-            (+ acc 1)
-            (collatz-length next (+ acc 1))))))
+            m
+            (collatz-length next m)))))
 
 (def collatz-next (fn [n]
     (if (= 0 (mod n 2))

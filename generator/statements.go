@@ -29,11 +29,33 @@ func makeIfStmt(cond ast.Expr, body *ast.BlockStmt, otherwise ast.Stmt) *ast.IfS
 	}
 }
 
-func makeAssignStmt(names, vals []ast.Expr) *ast.AssignStmt {
+func makeAssignStmt(names, vals []ast.Expr, assignType token.Token) *ast.AssignStmt {
 	return &ast.AssignStmt{
 		Lhs: names,
 		Rhs: vals,
-		// TODO: check if following line can be omitted
-		Tok: token.DEFINE,
+		Tok: assignType,
+	}
+}
+
+func makeBranchStmt(tok token.Token, labelName *ast.Ident) *ast.BranchStmt {
+	return &ast.BranchStmt{
+		Tok: tok,
+		Label: labelName,
+	}
+}
+
+func makeLabeledStmt(labelName *ast.Ident, stmt ast.Stmt) *ast.LabeledStmt {
+	return &ast.LabeledStmt{
+		Label: labelName,
+		Stmt: stmt,
+	}
+}
+
+func makeForStmt(init, post ast.Stmt, cond ast.Expr, body *ast.BlockStmt) *ast.ForStmt {
+	return &ast.ForStmt{
+		Init: init,
+		Post: post,
+		Cond: cond,
+		Body: body,
 	}
 }

@@ -4,20 +4,32 @@ import (
 	"../parser"
 	h "./helpers"
 	"go/ast"
+	"go/token"
 )
 
-func evalFunCall(node *parser.CallNode) ast.Expr {
+func evalFuncCall(node *parser.CallNode) ast.Expr {
 	switch {
 	case isUnaryOperator(node):
 		return makeUnaryExpr(unaryOperatorMap[node.Callee.(*parser.IdentNode).Ident], EvalExpr(node.Args[0]))
+
 	case isCallableOperator(node):
 		return makeNAryCallableExpr(node)
+
 	case isLogicOperator(node):
 		return makeNAryLogicExpr(node)
+
+	case isLoop(node):
+		return makeLoop(node)
+
+	case isRecur(node):
+		return makeRecur(node)
+
 	case checkLetArgs(node):
 		return makeLetFun(node)
+
 	case checkIfArgs(node):
 		return makeIfStmtFunc(node)
+
 	case checkFuncArgs(node):
 		// TODO: In case of type annotations change the following
 		returnField := []*ast.Field{makeField(nil, anyType)}
@@ -38,8 +50,10 @@ func evalFunCall(node *parser.CallNode) ast.Expr {
 		body := makeFuncBody(EvalExprs(node.Args[1:]))
 
 		return makeFuncLit(fnType, body)
+
 	case checkDefArgs(node):
 		panic("you can't have a def within an expression!")
+
 	case checkNSArgs(node):
 		panic("you can't define a namespace in an expression!")
 	}
@@ -224,4 +238,139 @@ func checkLetArgs(node *parser.CallNode) bool {
 	}
 
 	return true
+}
+
+func isLoop(node *parser.CallNode) bool {
+	// Need an identifier for it to be "loop"
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	// Not a "loop"
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "loop" {
+		return false
+	}
+
+	// Bindings should be a vector
+	bindings := node.Args[0]
+	if bindings.Type() != parser.NodeVector {
+		return false
+	}
+
+	// The bindings should be also vectors
+	b := bindings.(*parser.VectorNode)
+	for _, bind := range b.Nodes {
+		if _, ok := bind.(*parser.VectorNode); !ok {
+			return false
+		}
+	}
+
+	// The bound identifiers, should be identifiers
+	for _, bind := range b.Nodes {
+		bindingVect := bind.(*parser.VectorNode)
+		if bindingVect.Nodes[0].Type() != parser.NodeIdent {
+			return false
+		}
+	}
+
+	if !searchForRecur(node.Args[1:]) {
+		panic("no recur found in loop!")
+	}
+
+	return true
+}
+
+func isRecur(node *parser.CallNode) bool {
+	// Need an identifier for it to be "loop"
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	// Not a "loop"
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "recur" {
+		return false
+	}
+
+	// Bindings should be a vector
+	bindings := node.Args[0]
+	if bindings.Type() != parser.NodeVector {
+		return false
+	}
+
+	// The bindings should be also vectors
+	b := bindings.(*parser.VectorNode)
+	for _, bind := range b.Nodes {
+		if _, ok := bind.(*parser.VectorNode); !ok {
+			return false
+		}
+	}
+
+	// The bound identifiers, should be identifiers
+	for _, bind := range b.Nodes {
+		bindingVect := bind.(*parser.VectorNode)
+		if bindingVect.Nodes[0].Type() != parser.NodeIdent {
+			return false
+		}
+	}
+
+	return true
+}
+
+func searchForRecur(nodes []parser.Node) bool {
+	for _, node := range nodes {
+		if node.Type() == parser.NodeCall {
+			n := node.(*parser.CallNode)
+			if ident, ok := n.Callee.(*parser.IdentNode); ok && ident.Ident == "recur" {
+				return true
+			} else if searchForRecur(n.Args) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+func makeLoop(node *parser.CallNode) *ast.CallExpr {
+	returnIdent := generateIdent()
+	loopIdent := generateIdent()
+
+	fnBody := h.EmptyS()
+
+	bindings := makeBindings(node.Args[0].(*parser.VectorNode), token.DEFINE)
+	returnIdentValueSpec := makeValueSpec(h.I(returnIdent), nil, anyType)
+	returnIdentDecl := makeDeclStmt(makeGeneralDecl(token.VAR, []ast.Spec{returnIdentValueSpec}))
+
+	fnBody = append(fnBody, bindings...)
+	fnBody = append(fnBody, returnIdentDecl)
+
+	init := makeAssignStmt(h.E(loopIdent), h.E(ast.NewIdent("true")), token.DEFINE)
+	forBody := h.EmptyS()
+
+	forBody = append(forBody, makeAssignStmt(h.E(loopIdent), h.E(ast.NewIdent("false")), token.ASSIGN))
+	forBody = append(forBody, makeAssignStmt(h.E(returnIdent), h.E(EvalExpr(node.Args[1])), token.ASSIGN))
+
+	forStmt := makeForStmt(init, nil, loopIdent, makeBlockStmt(forBody))
+
+	fnBody = append(fnBody, forStmt)
+	fnBody = append(fnBody, makeReturnStmt(h.E(returnIdent)))
+
+	results := makeFieldList([]*ast.Field{makeField(nil, anyType)})
+	fnType := makeFuncType(results, nil)
+	fn := makeFuncLit(fnType, makeBlockStmt(fnBody))
+
+	return makeFuncCall(fn, h.EmptyE())
+}
+
+func makeRecur(node *parser.CallNode) *ast.CallExpr {
+	bindings := makeBindings(node.Args[0].(*parser.VectorNode), token.ASSIGN)
+	loopUpdate := makeAssignStmt(h.E(EvalExpr(node.Args[1])), h.E(ast.NewIdent("true")), token.ASSIGN)
+
+	body := append(h.EmptyS(), bindings...)
+	body = append(body, loopUpdate, makeReturnStmt(h.E(ast.NewIdent("nil"))))
+
+	resultType := makeFieldList([]*ast.Field{makeField(nil, anyType)})
+	fnType := makeFuncType(resultType, nil)
+	fn := makeFuncLit(fnType, makeBlockStmt(body))
+	return makeFuncCall(fn, h.EmptyE())
 }

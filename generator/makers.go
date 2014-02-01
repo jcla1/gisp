@@ -30,9 +30,9 @@ func makeIfStmtFunc(node *parser.CallNode) ast.Expr {
 }
 
 func makeLetFun(node *parser.CallNode) ast.Expr {
-	bindings := makeBindings(node.Args[0].(*parser.VectorNode))
+	bindings := makeBindings(node.Args[0].(*parser.VectorNode), token.DEFINE)
 
-	body := append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)
+	body := append(bindings, wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)
 	body[len(body)-1] = makeReturnStmt(h.E(body[len(body)-1].(*ast.ExprStmt).X))
 
 	fieldList := makeFieldList([]*ast.Field{makeField(nil, anyType)})
@@ -40,23 +40,25 @@ func makeLetFun(node *parser.CallNode) ast.Expr {
 	fn := makeFuncLit(typ, makeBlockStmt(body))
 
 	return makeFuncCall(fn, h.EmptyE())
-	// return makeFuncCall(makeFuncLit(h.EmptyI(), append(h.S(bindings), wrapExprsWithStmt(EvalExprs(node.Args[1:]))...)), h.EmptyE())
 }
 
-func makeBindings(bindings *parser.VectorNode) ast.Stmt {
-	vars := make([]ast.Expr, len(bindings.Nodes))
+func makeBindings(bindings *parser.VectorNode, assignmentType token.Token) []ast.Stmt {
+	assignments := make([]ast.Stmt, len(bindings.Nodes))
+
 	for i, bind := range bindings.Nodes {
 		b := bind.(*parser.VectorNode)
-		vars[i] = makeIdomaticSelector(b.Nodes[0].(*parser.IdentNode).Ident)
+		idents := b.Nodes[:len(b.Nodes)-1]
+
+		vars := make([]ast.Expr, len(idents))
+
+		for j, ident := range idents {
+			vars[j] = makeIdomaticSelector(ident.(*parser.IdentNode).Ident)
+		}
+
+		assignments[i] = makeAssignStmt(vars, h.E(EvalExpr(b.Nodes[len(b.Nodes)-1])), assignmentType)
 	}
 
-	vals := make([]ast.Expr, len(bindings.Nodes))
-	for i, bind := range bindings.Nodes {
-		b := bind.(*parser.VectorNode)
-		vals[i] = EvalExpr(b.Nodes[1])
-	}
-
-	return makeAssignStmt(vars, vals)
+	return assignments
 }
 
 func mainable(fn *ast.FuncLit) {
@@ -83,10 +85,11 @@ func mainable(fn *ast.FuncLit) {
 // Checked makers from here on! //
 //////////////////////////////////
 
-func makeValueSpec(names []*ast.Ident, values []ast.Expr) *ast.ValueSpec {
+func makeValueSpec(names []*ast.Ident, values []ast.Expr, typ ast.Expr) *ast.ValueSpec {
 	return &ast.ValueSpec{
 		Names:  names,
 		Values: values,
+		Type: typ,
 	}
 }
 
@@ -102,6 +105,12 @@ func makeGeneralDecl(typ token.Token, specs []ast.Spec) *ast.GenDecl {
 	return &ast.GenDecl{
 		Tok:   typ,
 		Specs: specs,
+	}
+}
+
+func makeDeclStmt(decl ast.Decl) *ast.DeclStmt {
+	return &ast.DeclStmt{
+		Decl: decl,
 	}
 }
 
