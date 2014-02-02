@@ -166,7 +166,7 @@ func EQ(args ...Any) bool {
 
 // greater than or equal
 func GTEQ(args ...Any) bool {
-    if GT(args) || EQ(args) {
+    if GT(args...) || EQ(args...) {
         return true
     }
 
@@ -175,7 +175,7 @@ func GTEQ(args ...Any) bool {
 
 // less than or equal
 func LTEQ(args ...Any) bool {
-    if LT(args) || EQ(args) {
+    if LT(args...) || EQ(args...) {
         return true
     }
 
