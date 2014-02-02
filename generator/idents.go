@@ -5,8 +5,8 @@ import (
 	"bytes"
 	"go/ast"
 	"regexp"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 func makeIdentSlice(nodes []*parser.IdentNode) []*ast.Ident {
@@ -58,7 +58,7 @@ var gensyms = func() <-chan string {
 	go func() {
 		i := 0
 		for {
-			syms <- "GEN_" + strconv.Itoa(i)
+			syms <- "GEN" + strconv.Itoa(i)
 			i++
 		}
 	}()

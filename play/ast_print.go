@@ -19,8 +19,8 @@ func hello(a, b Any, rest ...Any) Any {
 }
 
 func main() {
-	var f Any = nil
-	f = 20
+	f := 10
+	f.(func(int)Any)
 }
 `
 

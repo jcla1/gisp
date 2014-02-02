@@ -24,6 +24,9 @@ func evalFuncCall(node *parser.CallNode) ast.Expr {
 	case isRecur(node):
 		return makeRecur(node)
 
+	case isAssert(node):
+		return makeAssert(node)
+
 	case checkLetArgs(node):
 		return makeLetFun(node)
 
@@ -331,13 +334,44 @@ func searchForRecur(nodes []parser.Node) bool {
 	return false
 }
 
+func addNewValuesToBindings(bindingsVector *parser.VectorNode, vals []parser.Node) *parser.VectorNode {
+	for i, _ := range bindingsVector.Nodes {
+		bind := bindingsVector.Nodes[i].(*parser.VectorNode).Nodes
+		bind[len(bind)-1] = vals[i]
+	}
+
+	return bindingsVector
+}
+
+func addRecurLabelAndBindings(label *parser.IdentNode, bindingsVector *parser.VectorNode, nodes []parser.Node) {
+	for _, node := range nodes {
+		if node.Type() == parser.NodeCall {
+			n := node.(*parser.CallNode)
+			if ident, ok := n.Callee.(*parser.IdentNode); ok && ident.Ident == "recur" {
+				newValues := make([]parser.Node, len(n.Args))
+				copy(newValues, n.Args)
+
+				n.Args = make([]parser.Node, 2)
+				n.Args[0] = addNewValuesToBindings(bindingsVector.Copy().(*parser.VectorNode), newValues)
+				n.Args[1] = label
+			} else {
+				addRecurLabelAndBindings(label, bindingsVector, n.Args)
+			}
+		}
+	}
+}
+
 func makeLoop(node *parser.CallNode) *ast.CallExpr {
 	returnIdent := generateIdent()
 	loopIdent := generateIdent()
 
 	fnBody := h.EmptyS()
 
-	bindings := makeBindings(node.Args[0].(*parser.VectorNode), token.DEFINE)
+	bindingsVector := node.Args[0].(*parser.VectorNode)
+
+	addRecurLabelAndBindings(parser.NewIdentNode(loopIdent.String()), bindingsVector.Copy().(*parser.VectorNode), node.Args[1:])
+
+	bindings := makeBindings(bindingsVector, token.DEFINE)
 	returnIdentValueSpec := makeValueSpec(h.I(returnIdent), nil, anyType)
 	returnIdentDecl := makeDeclStmt(makeGeneralDecl(token.VAR, []ast.Spec{returnIdentValueSpec}))
 
@@ -348,7 +382,8 @@ func makeLoop(node *parser.CallNode) *ast.CallExpr {
 	forBody := h.EmptyS()
 
 	forBody = append(forBody, makeAssignStmt(h.E(loopIdent), h.E(ast.NewIdent("false")), token.ASSIGN))
-	forBody = append(forBody, makeAssignStmt(h.E(returnIdent), h.E(EvalExpr(node.Args[1])), token.ASSIGN))
+	forBody = append(forBody, wrapExprsWithStmt(EvalExprs(node.Args[1:len(node.Args)-1]))...)
+	forBody = append(forBody, makeAssignStmt(h.E(returnIdent), h.E(EvalExpr(node.Args[len(node.Args)-1])), token.ASSIGN))
 
 	forStmt := makeForStmt(init, nil, loopIdent, makeBlockStmt(forBody))
 
@@ -373,4 +408,30 @@ func makeRecur(node *parser.CallNode) *ast.CallExpr {
 	fnType := makeFuncType(resultType, nil)
 	fn := makeFuncLit(fnType, makeBlockStmt(body))
 	return makeFuncCall(fn, h.EmptyE())
+}
+
+func isAssert(node *parser.CallNode) bool {
+	// Need an identifier for it to be "assert"
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	// Not a "loop"
+	if callee := node.Callee.(*parser.IdentNode); callee.Ident != "assert" {
+		return false
+	}
+
+	if len(node.Args) != 2 {
+		panic("assert needs 2 arguments")
+	}
+
+	if _, ok := node.Args[0].(*parser.IdentNode); !ok {
+		panic("assert's first argument needs to be a type")
+	}
+
+	return true
+}
+
+func makeAssert(node *parser.CallNode) *ast.TypeAssertExpr {
+	return makeTypeAssertion(EvalExpr(node.Args[1]), ast.NewIdent(node.Args[0].(*parser.IdentNode).Ident))
 }

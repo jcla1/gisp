@@ -10,6 +10,7 @@ type Node interface {
 	Type() NodeType
 	// Position() Pos
 	String() string
+	Copy() Node
 }
 
 type Pos int
@@ -38,6 +39,10 @@ type IdentNode struct {
 	Ident string
 }
 
+func (node *IdentNode) Copy() Node {
+	return NewIdentNode(node.Ident)
+}
+
 func (node *IdentNode) String() string {
 	if node.Ident == "nil" {
 		return "()"
@@ -52,6 +57,10 @@ type StringNode struct {
 	Value string
 }
 
+func (node *StringNode) Copy() Node {
+	return newStringNode(node.Value)
+}
+
 func (node *StringNode) String() string {
 	return node.Value
 }
@@ -63,6 +72,10 @@ type NumberNode struct {
 	NumberType token.Token
 }
 
+func (node *NumberNode) Copy() Node {
+	return &NumberNode{NodeType: node.Type(), Value: node.Value, NumberType: node.NumberType}
+}
+
 func (node *NumberNode) String() string {
 	return node.Value
 }
@@ -71,6 +84,14 @@ type VectorNode struct {
 	// Pos
 	NodeType
 	Nodes []Node
+}
+
+func (node *VectorNode) Copy() Node {
+	vect := &VectorNode{NodeType: node.Type(), Nodes: make([]Node, len(node.Nodes))}
+	for i, v := range node.Nodes {
+		vect.Nodes[i] = v.Copy()
+	}
+	return vect
 }
 
 func (node *VectorNode) String() string {
@@ -84,12 +105,20 @@ type CallNode struct {
 	Args   []Node
 }
 
+func (node *CallNode) Copy() Node {
+	call := &CallNode{NodeType: node.Type(), Callee: node.Callee.Copy(), Args: make([]Node, len(node.Args))}
+	for i, v := range node.Args {
+		call.Args[i] = v.Copy()
+	}
+	return call
+}
+
 func (node *CallNode) String() string {
 	args := fmt.Sprint(node.Args)
 	return fmt.Sprintf("(%s %s)", node.Callee, args[1:len(args)-1])
 }
 
-var nilNode = newIdentNode("nil")
+var nilNode = NewIdentNode("nil")
 
 func ParseFromString(name, program string) []Node {
 	return Parse(lexer.Lex(name, program))
@@ -103,7 +132,7 @@ func parser(l *lexer.Lexer, tree []Node, lookingFor rune) []Node {
 	for item := l.NextItem(); item.Type != lexer.ItemEOF; {
 		switch t := item.Type; t {
 		case lexer.ItemIdent:
-			tree = append(tree, newIdentNode(item.Value))
+			tree = append(tree, NewIdentNode(item.Value))
 		case lexer.ItemString:
 			tree = append(tree, newStringNode(item.Value))
 		case lexer.ItemInt:
@@ -137,7 +166,7 @@ func parser(l *lexer.Lexer, tree []Node, lookingFor rune) []Node {
 	return tree
 }
 
-func newIdentNode(name string) *IdentNode {
+func NewIdentNode(name string) *IdentNode {
 	return &IdentNode{NodeType: NodeIdent, Ident: name}
 }
 

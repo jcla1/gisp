@@ -89,7 +89,7 @@ func makeValueSpec(names []*ast.Ident, values []ast.Expr, typ ast.Expr) *ast.Val
 	return &ast.ValueSpec{
 		Names:  names,
 		Values: values,
-		Type: typ,
+		Type:   typ,
 	}
 }
 

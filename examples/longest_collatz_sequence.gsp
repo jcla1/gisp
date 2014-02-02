@@ -3,28 +3,28 @@
     "../core")
 
 (def main (fn []
-    (let [[n (longest-collatz 1000000)]]
+    (let [[n (collatz-longest 1000000)]]
         (fmt/println "Longest sequence produced by:" n)
-        (fmt/printf "It was %f elements long!\n" (collatz-length n 1))
+        (fmt/printf "It was %d elements long!\n" (collatz-length n))
         ())))
 
-(def collatz-longest (fn [below]
-    (collatz-longest-helper below 0 0)))
+(def collatz-longest (fn [below-val]
+    (loop [[below below-val]
+           [n 1.0]
+           [max 0]]
+        (if (= below 1) (+ 1 n)
+            (let [[l (collatz-length below)]
+                  [m (+ -1 below)]]
+                (if (> l max)
+                (recur m (assert float64 below) (assert int l))
+                (recur m n max)))))))
 
-(def collatz-longest-helper (fn [below n max]
-    (if (= below 1) n
-        (let [[l (collatz-length below 1)]
-              [m (+ -1 below)]]
-            (if (> l max)
-                (collatz-longest-helper m below l)
-                (collatz-longest-helper m n max))))))
-
-(def collatz-length (fn [n acc]
-    (let [[next (next-collatz n)]
-          [m (+ acc 1)]]
+(def collatz-length (fn [n]
+    (loop [[next n]
+          [acc 1]]
         (if (= next 1)
-            m
-            (collatz-length next m)))))
+            acc
+            (recur (collatz-next next) (int (+ acc 1)))))))
 
 (def collatz-next (fn [n]
     (if (= 0 (mod n 2))

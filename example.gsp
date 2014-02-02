@@ -3,5 +3,5 @@
     "../core")
 
 (def main (fn []
-    (loop [[x 0]]
-        (if (< x 10) (recur [[x (+ x 1)]] GEN_0) x))))
+    (loop [[x 0] [y 10]]
+        (if (< x 10) (recur (+ x 1) (+ -1 y)) x))))

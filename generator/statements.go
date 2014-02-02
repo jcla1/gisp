@@ -39,7 +39,7 @@ func makeAssignStmt(names, vals []ast.Expr, assignType token.Token) *ast.AssignS
 
 func makeBranchStmt(tok token.Token, labelName *ast.Ident) *ast.BranchStmt {
 	return &ast.BranchStmt{
-		Tok: tok,
+		Tok:   tok,
 		Label: labelName,
 	}
 }
@@ -47,7 +47,7 @@ func makeBranchStmt(tok token.Token, labelName *ast.Ident) *ast.BranchStmt {
 func makeLabeledStmt(labelName *ast.Ident, stmt ast.Stmt) *ast.LabeledStmt {
 	return &ast.LabeledStmt{
 		Label: labelName,
-		Stmt: stmt,
+		Stmt:  stmt,
 	}
 }
 
