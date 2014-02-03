@@ -16,8 +16,8 @@
             (let [[l (collatz-length below)]
                   [m (+ -1 below)]]
                 (if (> l max)
-                (recur m (assert float64 below) (assert int l))
-                (recur m n max)))))))
+                    (recur m (assert float64 below) (assert int l))
+                    (recur m n max)))))))
 
 (def collatz-length (fn [n]
     (loop [[next n]
