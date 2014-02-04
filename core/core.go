@@ -39,16 +39,27 @@ func ADD(args ...Any) float64 {
     return sum
 }
 
-// func SUB(args ...Any) float64 {
-//     for i := 0; i < len(args); i++ {
-//         switch n := args[i]; {
-//         case isInt(n):
-//             sum -= n.(float64)
-//         }
-//     }
+func SUB(args ...Any) float64 {
+    var result float64
+    if isInt(args[0]) {
+        result = float64(args[0].(int))
+    } else if isFloat(args[0]) {
+        result = args[0].(float64)
+    } else {
+        panic("need int/float for SUB")
+    }
 
-//     return sum
-// }
+    for i := 1; i < len(args); i++ {
+        switch n := args[i]; {
+        case isInt(n):
+            result -= float64(n.(int))
+        case isFloat(n):
+            result -= n.(float64)
+        }
+    }
+
+    return result
+}
 
 func MUL(args ...Any) float64 {
     var prod float64 = 1
