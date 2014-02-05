@@ -1,5 +1,7 @@
 package core
 
+import "fmt"
+
 type Any interface{}
 
 func MOD(a, b Any) int {
@@ -201,4 +203,36 @@ func isFloat(n Any) bool {
 func isInt(n Any) bool {
     _, ok := n.(int)
     return ok
+}
+
+func Get(args ...Any) Any {
+    if len(args) != 2 && len(args) != 3 {
+        panic(fmt.Sprintf("get needs 2 or 3 arguments %d given.", len(args)))
+    }
+
+    if len(args) == 2 {
+        if a, ok := args[1].([]Any); ok {
+            return a[args[0].(int)]
+        } else if a, ok := args[1].(string); ok {
+            return a[args[0].(int)]
+        } else {
+            panic("arguments to get must include slice/vector/string")
+        }
+    } else {
+        if a, ok := args[2].([]Any); ok {
+            if args[1].(int) == -1 {
+                return a[args[0].(int):]
+            }
+
+            return a[args[0].(int):args[1].(int)]
+        } else if a, ok := args[2].(string); ok {
+            if args[1].(int) == -1 {
+                return a[args[0].(int):]
+            }
+
+            return a[args[0].(int):args[1].(int)]
+        } else {
+            panic("arguments to get must include slice/vector/string")
+        }
+    }
 }

@@ -27,6 +27,9 @@ func evalFuncCall(node *parser.CallNode) ast.Expr {
 	case isAssert(node):
 		return makeAssert(node)
 
+	case isCoreFunc(node):
+		return makeCoreCall(node)
+
 	case checkLetArgs(node):
 		return makeLetFun(node)
 
@@ -434,4 +437,30 @@ func isAssert(node *parser.CallNode) bool {
 
 func makeAssert(node *parser.CallNode) *ast.TypeAssertExpr {
 	return makeTypeAssertion(EvalExpr(node.Args[1]), ast.NewIdent(node.Args[0].(*parser.IdentNode).Ident))
+}
+
+var coreFuncs = []string{"get"}
+
+func isCoreFunc(node *parser.CallNode) bool {
+	// Need an identifier for it to be a func
+	if node.Callee.Type() != parser.NodeIdent {
+		return false
+	}
+
+	ident := node.Callee.(*parser.IdentNode).Ident
+
+	for _, v := range coreFuncs {
+		if v == ident {
+			return true
+		}
+	}
+
+	return false
+}
+
+// TODO: just a quick and dirty implementation
+func makeCoreCall(node *parser.CallNode) ast.Expr {
+	ident := node.Callee.(*parser.IdentNode).Ident
+	node.Callee.(*parser.IdentNode).Ident = "core/" + ident
+	return evalFuncCall(node)
 }
