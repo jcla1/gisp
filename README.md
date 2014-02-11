@@ -10,7 +10,6 @@ Simple (non standard) compiler of Lisp/Scheme to Go.
 - AST generating REPL included
 
 
-
 ## Build and Run
 ```
 > go build && ./gisp
@@ -21,3 +20,13 @@ To compile a file:
 ```
 > ./gisp filename.gsp
 ````
+
+# Functions
+```
++,-,*,mod, all pre-existing Go functions
+```
+See [examples](examples) for some Project Euler solutions
+
+# License
+
+MIT
