@@ -23,7 +23,7 @@ To compile a file:
 
 # Functions
 ```
-+,-,*,mod, all pre-existing Go functions
++, -, *, mod, let, if, ns, def, fn, all pre-existing Go functions
 ```
 See [examples](examples) for some Project Euler solutions
 
