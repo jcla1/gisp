@@ -1,8 +1,8 @@
 package main
 
 import (
-	"./generator"
-	"./parser"
+	"github.com/jcla1/gisp/generator"
+	"github.com/jcla1/gisp/parser"
 	"bufio"
 	"bytes"
 	"fmt"

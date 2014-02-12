@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"../parser"
+	"github.com/jcla1/gisp/parser"
 	"fmt"
 	"go/ast"
 	"go/token"
