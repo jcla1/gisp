@@ -1,6 +1,6 @@
 (ns main
     "fmt"
-    "../core")
+    "github.com/jcla1/gisp/core")
 
 (def main (fn []
     (let [[n (collatz-longest 1000000)]]

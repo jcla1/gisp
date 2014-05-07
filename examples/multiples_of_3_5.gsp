@@ -1,6 +1,6 @@
 (ns main
     "fmt"
-    "../core")
+    "github.com/jcla1/gisp/core")
 
 (def main (fn []
     (fmt/println (sum-of-multiples 1000))))

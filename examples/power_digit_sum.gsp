@@ -2,7 +2,7 @@
     "fmt"
     "strconv"
     "math/big"
-    "../core")
+    "github.com/jcla1/gisp/core")
 
 (def main (fn []
     (fmt/println "The sum of the digits of 2^1000 is:"

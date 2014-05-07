@@ -1,6 +1,6 @@
 (ns main
     "fmt"
-    "../core")
+    "github.com/jcla1/gisp/core")
 
 (def main (fn []
     (fmt/printf "10! = %d\n" (int (assert float64 (factorial 10))))))
