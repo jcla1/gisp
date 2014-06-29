@@ -187,39 +187,24 @@ func lexWhitespace(l *Lexer) stateFn {
 }
 
 func lexString(l *Lexer) stateFn {
-Loop:
-	for {
-		switch l.next() {
-		case '\\':
-			if r := l.next(); r != EOF {
-				break
-			}
-			fallthrough
-		case EOF:
+	for r := l.next(); r != '"'; r = l.next() {
+		if r == '\\' {
+			r = l.next()
+		}
+		if r == EOF {
 			return l.errorf("unterminated quoted string")
-		case '"':
-			break Loop
 		}
 	}
-
 	l.emit(ItemString)
 	return lexWhitespace
 }
 
 func lexIdentifier(l *Lexer) stateFn {
-Loop:
-	for {
-		switch r := l.next(); {
-		case isAlphaNumeric(r):
-			// absorb it!
-		default:
-			l.backup()
-			break Loop
-		}
+	for r := l.next(); isAlphaNumeric(r); r = l.next() {
 	}
-
+	l.backup()
+	
 	l.emit(ItemIdent)
-
 	return lexWhitespace
 }
 
