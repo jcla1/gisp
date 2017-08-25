@@ -4,7 +4,7 @@ gisp
 Simple (non standard) compiler of Lisp/Scheme to Go.
 
 ## Includes
-- Lexer based on Rob Pike's [Lexical Scanning in Go](http://cuddle.googlecode.com/hg/talk/lex.html#title-slide)
+- Lexer based on Rob Pike's [Lexical Scanning in Go](https://talks.golang.org/2011/lex.slide)
 - Simple recursive parser, supporting ints, floats, strings, bools
 - TCO via loop/recur
 - AST generating REPL included
